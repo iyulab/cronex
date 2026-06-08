@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <PackageId>Cronex.Hosting</PackageId>
+    <Description>Generic Host integration for Cronex scheduler.</Description>
+    <PackageTags>cron;scheduler;hosting;backgroundservice</PackageTags>
+    <RootNamespace>Cronex.Hosting</RootNamespace>
+    <AssemblyName>Cronex.Hosting</AssemblyName>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Cronex\Cronex.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.*" />
+  </ItemGroup>
+
+</Project>

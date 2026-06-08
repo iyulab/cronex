@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Cronex/Cronex.csproj" />
+    <Project Path="src/Cronex.Hosting/Cronex.Hosting.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Cronex.Tests/Cronex.Tests.csproj" />
+    <Project Path="tests/Cronex.Benchmarks/Cronex.Benchmarks.csproj" />
+  </Folder>
+</Solution>

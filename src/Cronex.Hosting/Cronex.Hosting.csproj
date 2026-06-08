@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <PackageId>Cronex.Hosting</PackageId>
+    <PackageId>Cronex.Net.Hosting</PackageId>
     <Description>Generic Host integration for Cronex scheduler.</Description>
     <PackageTags>cron;scheduler;hosting;backgroundservice</PackageTags>
     <RootNamespace>Cronex.Hosting</RootNamespace>

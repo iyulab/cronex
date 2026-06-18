@@ -7,9 +7,14 @@ on:
       - 'Directory.Build.props'
   workflow_dispatch:   # manual trigger (e.g. first publish without a version bump)
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   publish:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     permissions:
       id-token: write   # OIDC token issuance for NuGet Trusted Publishing
       contents: write   # push the version tag

@@ -28,8 +28,8 @@ Cronex is a **cron expression superset** with a minimal trigger engine. It exten
 ## Install
 
 ```bash
-dotnet add package Cronex              # Core: expression + scheduler
-dotnet add package Cronex.Hosting      # Optional: Generic Host integration
+dotnet add package Cronex.Net          # Core: expression + scheduler
+dotnet add package Cronex.Net.Hosting  # Optional: Generic Host integration
 ```
 
 The core package has **zero external dependencies**.

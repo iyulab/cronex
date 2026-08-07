@@ -67,9 +67,9 @@ cron_6field
 second_field  = cron_field ;   (* 0-59 *)
 minute_field  = cron_field ;   (* 0-59 *)
 hour_field    = cron_field ;   (* 0-23 *)
-dom_field     = dom_cron_field ;  (* 1-31, with L/W support *)
+dom_field     = dom_cron_field ;  (* 1-31, with L/W/? support *)
 month_field   = month_cron_field ;  (* 1-12 or JAN-DEC *)
-dow_field     = dow_cron_field ;  (* 0-7, SUN-SAT, with L/# support *)
+dow_field     = dow_cron_field ;  (* 0-7, SUN-SAT, with L/#/? support *)
 
 cron_field
     = "*"
@@ -85,13 +85,14 @@ cron_element
 cron_value
     = integer ;
 
-(* Day-of-Month: additionally supports L, W *)
+(* Day-of-Month: additionally supports L, W, ? *)
 dom_cron_field
     = cron_field
     | "L"                     (* last day of month *)
     | "LW"                    (* nearest weekday to the last day *)
     | "L-" , positive_integer (* N days before the last day *)
-    | integer , "W" ;         (* nearest weekday to the Nth day *)
+    | integer , "W"           (* nearest weekday to the Nth day *)
+    | "?" ;                   (* Quartz "don't care" — synonym for "*" *)
 
 (* Month: numeric or name *)
 month_cron_field
@@ -108,12 +109,13 @@ month_name
     = "JAN" | "FEB" | "MAR" | "APR" | "MAY" | "JUN"
     | "JUL" | "AUG" | "SEP" | "OCT" | "NOV" | "DEC" ;
 
-(* Day-of-Week: numeric/name + L/# support *)
+(* Day-of-Week: numeric/name + L/#/? support *)
 dow_cron_field
     = cron_field
     | dow_name_list
     | dow_name , "L"              (* last occurrence of that weekday in the month *)
-    | dow_name , "#" , digit ;    (* Nth occurrence of that weekday in the month *)
+    | dow_name , "#" , digit      (* Nth occurrence of that weekday in the month *)
+    | "?" ;                       (* Quartz "don't care" — synonym for "*" *)
 
 dow_name_list
     = dow_name_element , { "," , dow_name_element } ;

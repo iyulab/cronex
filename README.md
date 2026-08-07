@@ -35,7 +35,7 @@ TZ=Asia/Seoul 0 9 * * MON-FRI {jitter:30s, until:2025-12-31}
 |---|------|-------|
 | **Standard cron** | 5 fields (`min hour day month weekday`), ranges/lists/steps (`1-5`, `1,3,5`, `*/5`), names (`MON`, `JAN`) | Portable — any existing crontab expression works as-is |
 | **`TZ=` prefix** | Timezone-aware, DST-correct evaluation | Schedules run in the business's timezone, not the server's |
-| **Calendar tokens** | `L`, `W`, `LW`, `L-N`, `NW`, `#`, `DOWL` (Quartz-style, not in POSIX cron) | "Last weekday of month", "2nd Monday" — no app-side date math |
+| **Calendar tokens** | `L`, `W`, `LW`, `L-N`, `NW`, `#`, `DOWL`, `?` (Quartz-style, not in POSIX cron) | "Last weekday of month", "2nd Monday" — no app-side date math. `?` is a drop-in synonym for `*` in day-of-month/day-of-week, for pasting in Quartz expressions unchanged |
 | **`@every` / `@once` / `@daily` ...** | Interval and one-shot shorthand | Express recurring or single-fire schedules without hand-translating to cron fields |
 | **`{...}` options** | `jitter`, `stagger`, `window`, `from`, `until`, `max`, `tag`, `catchup` | Execution-time controls — collision avoidance, deadlines, run caps, misfire policy — normally re-implemented per app |
 
@@ -70,6 +70,7 @@ The core package has **zero external dependencies**.
 | `@daily` | Alias for `0 0 * * *` |
 | `0 0 L * *` | Last day of month |
 | `0 0 * * MON#2` | Second Monday |
+| `0 0 12 ? * MON` | Quartz-style — `?` in day-of-month is a synonym for `*` |
 
 ### Options `{...}`
 

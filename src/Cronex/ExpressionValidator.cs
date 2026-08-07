@@ -104,8 +104,9 @@ public static class ExpressionValidator
         ValidateField(fields[offset], CronFieldType.Minute, "E002", errors);
         ValidateField(fields[offset + 1], CronFieldType.Hour, "E003", errors);
 
-        // DOM — might be special (L, W)
-        var domRaw = fields[offset + 2];
+        // DOM — might be special (L, W), or Quartz "?" (synonym for "*" — normalize before the
+        // special-form check so it's never mistaken for one and always validates as a wildcard).
+        var domRaw = fields[offset + 2] == "?" ? "*" : fields[offset + 2];
         var domIsSpecial = IsSpecialDom(domRaw);
         if (!domIsSpecial)
             ValidateField(domRaw, CronFieldType.DayOfMonth, "E004", errors);
@@ -113,8 +114,8 @@ public static class ExpressionValidator
         var monthRaw = fields[offset + 3];
         ValidateField(monthRaw, CronFieldType.Month, "E005", errors);
 
-        // DOW — might be special (#, L)
-        var dowRaw = fields[offset + 4];
+        // DOW — might be special (#, L), or "?" (same normalization as DOM)
+        var dowRaw = fields[offset + 4] == "?" ? "*" : fields[offset + 4];
         if (!IsSpecialDow(dowRaw))
             ValidateField(dowRaw, CronFieldType.DayOfWeek, "E006", errors);
 

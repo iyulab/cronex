@@ -51,6 +51,11 @@ here even when no code changed.
   behavior available is now the explicit `all` default. `skip` discards the whole missed backlog and
   resumes at the next occurrence after now; `once` fires only the most recent missed occurrence.
   Invalid `catchup` values are rejected by `ExpressionValidator` as `E016`.
+- `?` is now accepted in the day-of-month and day-of-week cron fields as a synonym for `*` (Quartz's
+  "don't care" token, used to sidestep the DOM/DOW OR-semantics ambiguity — e.g. `0 0 12 ? * MON`).
+  Cronex already borrowed `L`/`W`/`LW`/`L-N`/`NW`/`#`/`DOWL` from Quartz; `?` was the one common
+  Quartz token that previously failed to parse, blocking a straight paste of many real-world Quartz
+  expressions.
 
 ## 0.3.3
 

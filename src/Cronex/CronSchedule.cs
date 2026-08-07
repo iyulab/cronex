@@ -95,7 +95,10 @@ public sealed class CronSchedule
         if (!CronField.TryParse(fields[offset + 1], CronFieldType.Hour, out var hour, out error))
             return false;
         // Day-of-month: check for special characters first
-        var domRaw = fields[offset + 2];
+        // Quartz "?" ("don't care") is a synonym for "*" in DOM/DOW — normalize before anything else
+        // sees it, so the rest of parsing (including the L/W/etc. special-form checks) never needs
+        // to know "?" exists.
+        var domRaw = fields[offset + 2] == "?" ? "*" : fields[offset + 2];
         SpecialCronEntry? domSpecial = null;
         CronField dom;
 
@@ -116,8 +119,8 @@ public sealed class CronSchedule
         if (!CronField.TryParse(fields[offset + 3], CronFieldType.Month, out var month, out error))
             return false;
 
-        // Day-of-week: check for special characters first
-        var dowRaw = fields[offset + 4];
+        // Day-of-week: check for special characters first (same "?" normalization as day-of-month)
+        var dowRaw = fields[offset + 4] == "?" ? "*" : fields[offset + 4];
         SpecialCronEntry? dowSpecial = null;
         CronField dow;
 

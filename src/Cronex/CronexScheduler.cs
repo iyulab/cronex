@@ -100,6 +100,64 @@ public sealed class CronexScheduler : IAsyncDisposable
     }
 
     /// <summary>
+    /// Replaces the expression of an existing trigger, keeping its handler, <c>FireCount</c>, and
+    /// <c>LastFired</c>. <see cref="TriggerRegistration.NextFireTime"/> is recomputed from the new
+    /// expression using the current time. Use this instead of <see cref="Unregister"/> +
+    /// <see cref="Register(string, string, Func{TriggerContext, CancellationToken, Task}, DateTimeOffset?)"/>
+    /// when reloading a changed schedule — that pattern creates a brand-new
+    /// <see cref="TriggerRegistration"/>, resetting <c>FireCount</c> to 0 and breaking a
+    /// <c>{max:N}</c> trigger's count across a reload.
+    /// </summary>
+    /// <param name="id">The trigger to update.</param>
+    /// <param name="expression">The new Cronex expression string.</param>
+    /// <param name="referenceTime">Reference time for relative @once expressions.</param>
+    /// <returns>The updated trigger registration (same instance as before the call).</returns>
+    /// <exception cref="InvalidOperationException">No trigger with <paramref name="id"/> is registered.</exception>
+    public TriggerRegistration Update(string id, string expression, DateTimeOffset? referenceTime = null)
+    {
+        var expr = CronexExpression.Parse(expression, referenceTime);
+        return Update(id, expr);
+    }
+
+    /// <summary>Replaces the expression of an existing trigger with a pre-parsed expression, keeping its handler.</summary>
+    public TriggerRegistration Update(string id, CronexExpression expression)
+    {
+        var reg = GetRegisteredTrigger(id);
+        reg.Expression = expression;
+        reg.NextFireTime = expression.GetNextOccurrence(_timeProvider.GetUtcNow());
+        return reg;
+    }
+
+    /// <summary>
+    /// Replaces both the expression and the handler of an existing trigger, keeping its
+    /// <c>FireCount</c> and <c>LastFired</c>.
+    /// </summary>
+    public TriggerRegistration Update(string id, string expression,
+        Func<TriggerContext, CancellationToken, Task> handler, DateTimeOffset? referenceTime = null)
+    {
+        var expr = CronexExpression.Parse(expression, referenceTime);
+        return Update(id, expr, handler);
+    }
+
+    /// <summary>Replaces both the expression and the handler of an existing trigger with a pre-parsed expression.</summary>
+    public TriggerRegistration Update(string id, CronexExpression expression,
+        Func<TriggerContext, CancellationToken, Task> handler)
+    {
+        var reg = GetRegisteredTrigger(id);
+        reg.Expression = expression;
+        reg.Handler = handler;
+        reg.NextFireTime = expression.GetNextOccurrence(_timeProvider.GetUtcNow());
+        return reg;
+    }
+
+    private TriggerRegistration GetRegisteredTrigger(string id)
+    {
+        if (!_triggers.TryGetValue(id, out var reg))
+            throw new InvalidOperationException($"Trigger '{id}' is not registered");
+        return reg;
+    }
+
+    /// <summary>
     /// Unregisters a trigger by ID.
     /// </summary>
     /// <returns>True if the trigger was found and removed.</returns>

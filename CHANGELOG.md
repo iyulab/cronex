@@ -56,6 +56,14 @@ here even when no code changed.
   Cronex already borrowed `L`/`W`/`LW`/`L-N`/`NW`/`#`/`DOWL` from Quartz; `?` was the one common
   Quartz token that previously failed to parse, blocking a straight paste of many real-world Quartz
   expressions.
+- `CronexScheduler.Update(id, expression, [handler], [referenceTime])` — 4 overloads (string or
+  pre-parsed `CronexExpression`, keeping or replacing the handler) replace a trigger's expression in
+  place. Previously the only way to change a running trigger's schedule was `Unregister` + `Register`,
+  which creates a brand-new `TriggerRegistration` and resets `FireCount`/`LastFired` — a `{max:N}`
+  trigger's count silently broke across every config reload. `Update` keeps the same registration,
+  preserving both. `TriggerRegistration.Expression`/`Handler` are now mutable (lock-protected, like
+  the fields that were already mutable after construction) to support this — no observable change
+  for existing read-only usage.
 
 ## 0.3.3
 

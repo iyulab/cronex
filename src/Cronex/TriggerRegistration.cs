@@ -8,17 +8,32 @@ public sealed class TriggerRegistration
     /// <summary>Unique trigger identifier.</summary>
     public string Id { get; }
 
-    /// <summary>The parsed expression for this trigger.</summary>
-    public CronexExpression Expression { get; }
-
-    /// <summary>The handler to invoke when the trigger fires.</summary>
-    internal Func<TriggerContext, CancellationToken, Task> Handler { get; }
-
     // Issue 3: volatile fields for thread-safe reads across threads
     private volatile bool _enabled = true;
     private DateTimeOffset? _nextFireTime;
     private DateTimeOffset? _lastFired;
     private TimeSpan? _jitterOffset;
+    private CronexExpression _expression;
+    private Func<TriggerContext, CancellationToken, Task> _handler;
+
+    /// <summary>
+    /// The parsed expression for this trigger. Settable internally by
+    /// <see cref="CronexScheduler.Update(string, CronexExpression)"/> — lock-protected like the
+    /// other fields that become mutable after construction, since it was originally
+    /// construction-only and other members (<see cref="JitterOffset"/>'s draw) read it.
+    /// </summary>
+    public CronexExpression Expression
+    {
+        get { lock (this) { return _expression; } }
+        internal set { lock (this) { _expression = value; } }
+    }
+
+    /// <summary>The handler to invoke when the trigger fires.</summary>
+    internal Func<TriggerContext, CancellationToken, Task> Handler
+    {
+        get { lock (this) { return _handler; } }
+        set { lock (this) { _handler = value; } }
+    }
 
     /// <summary>Whether this trigger is enabled.</summary>
     public bool Enabled
@@ -110,8 +125,8 @@ public sealed class TriggerRegistration
         Dictionary<string, string>? metadata = null)
     {
         Id = id;
-        Expression = expression;
-        Handler = handler;
+        _expression = expression;
+        _handler = handler;
         Metadata = metadata?.AsReadOnly();
     }
 }

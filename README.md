@@ -181,6 +181,12 @@ scheduler.SetEnabled("sync", false);  // pause
 scheduler.SetEnabled("sync", true);   // resume
 scheduler.Unregister("old-job");      // remove
 scheduler.IsRunning;                  // true while Start() has an active tick loop
+
+// Reload a changed schedule without resetting FireCount/LastFired — Unregister + Register
+// would create a brand-new registration and reset FireCount to 0, breaking a {max:N} trigger's
+// count across the reload.
+scheduler.Update("sync", "@every 30m");                              // schedule only, keep handler
+scheduler.Update("sync", "@every 30m", async (ctx, ct) => { ... });   // schedule + handler
 ```
 
 ## TriggerContext

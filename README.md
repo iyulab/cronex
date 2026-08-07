@@ -21,7 +21,25 @@ scheduler.Start();
 
 ## What Cronex Is
 
-Cronex is a **cron expression superset** with a minimal trigger engine. It extends standard cron with timezone, interval, one-shot, jitter, stagger, window, and expiry — all in a single string. When a trigger fires, your handler gets a rich `TriggerContext`. That's it.
+Cronex is a **cron expression superset**: standard cron syntax works unchanged, and everything else is additive within the same string.
+
+```
+TZ=Asia/Seoul 0 9 * * MON-FRI {jitter:30s, until:2025-12-31}
+│             │               │
+│             │               └─ options block   ← extension
+│             └─ 5-field POSIX cron               ← unchanged
+└─ timezone prefix                                 ← extension
+```
+
+| | Adds | Value |
+|---|------|-------|
+| **Standard cron** | 5 fields (`min hour day month weekday`), ranges/lists/steps (`1-5`, `1,3,5`, `*/5`), names (`MON`, `JAN`) | Portable — any existing crontab expression works as-is |
+| **`TZ=` prefix** | Timezone-aware, DST-correct evaluation | Schedules run in the business's timezone, not the server's |
+| **Calendar tokens** | `L`, `W`, `LW`, `L-N`, `NW`, `#`, `DOWL` (Quartz-style, not in POSIX cron) | "Last weekday of month", "2nd Monday" — no app-side date math |
+| **`@every` / `@once` / `@daily` ...** | Interval and one-shot shorthand | Express recurring or single-fire schedules without hand-translating to cron fields |
+| **`{...}` options** | `jitter`, `stagger`, `window`, `from`, `until`, `max`, `tag` | Execution-time controls — collision avoidance, deadlines, run caps — normally re-implemented per app |
+
+When a trigger fires, your handler gets a rich `TriggerContext`. That's it.
 
 **What Cronex is not:** a job framework, a task queue, or a persistence layer. It doesn't tell you how to execute work. It tells you *when*, gives you *context*, and gets out of the way.
 
@@ -35,16 +53,6 @@ dotnet add package Cronex.Net.Hosting  # Optional: Generic Host integration
 The core package has **zero external dependencies**.
 
 ## Expression
-
-Standard cron works unchanged. Extensions are additive.
-
-```
-TZ=Asia/Seoul 0 9 * * MON-FRI {jitter:30s, until:2025-12-31}
-│             │               │
-│             │               └─ options block
-│             └─ standard 5-field cron
-└─ timezone prefix
-```
 
 ### Quick Reference
 
@@ -246,8 +254,8 @@ public class ReportHandler(IReportService reports) : ICronexHandler
 
 | Package | Description | Dependencies |
 |---------|-------------|--------------|
-| **Cronex** | Core: expression parser + scheduler + events | BCL only (zero external) |
-| **Cronex.Hosting** | Generic Host integration (`AddCronex`) | Cronex, M.E.Hosting.Abstractions |
+| **Cronex.Net** | Core: expression parser + scheduler + events | BCL only (zero external) |
+| **Cronex.Net.Hosting** | Generic Host integration (`AddCronex`) | Cronex.Net, M.E.Hosting.Abstractions |
 
 Requires **.NET 10** or later.
 

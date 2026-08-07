@@ -247,6 +247,35 @@ public sealed class CronexScheduler : IAsyncDisposable
 
             var scheduledTime = nextFireTime.Value;
 
+            // MF-1: Misfire/catchup policy — decide what to do when we're behind schedule (a later
+            // occurrence is also already due). Default (All, or unset) fires every missed occurrence
+            // one per tick, unchanged from before this option existed.
+            var catchup = reg.Expression.Options.Catchup ?? CatchupPolicy.All;
+            if (catchup != CatchupPolicy.All)
+            {
+                var latestDue = scheduledTime;
+                var nextAfterLatest = reg.Expression.GetNextOccurrence(latestDue);
+                while (nextAfterLatest.HasValue && nextAfterLatest.Value <= now)
+                {
+                    latestDue = nextAfterLatest.Value;
+                    nextAfterLatest = reg.Expression.GetNextOccurrence(latestDue);
+                }
+
+                if (latestDue != scheduledTime)
+                {
+                    if (catchup == CatchupPolicy.Skip)
+                    {
+                        SafeInvoke(() => TriggerSkipped?.Invoke(reg.Id, "catchup skip"), nameof(TriggerSkipped));
+                        reg.NextFireTime = nextAfterLatest;
+                        continue;
+                    }
+
+                    // Once: fire only the most recent missed occurrence; the rest of the backlog
+                    // between the original scheduledTime and latestDue is discarded, not fired.
+                    scheduledTime = latestDue;
+                }
+            }
+
             // Issue 5: Window check against nominal scheduled time only (not widened by jitter)
             if (reg.Expression.Options.Window.HasValue)
             {

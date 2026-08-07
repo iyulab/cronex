@@ -28,6 +28,10 @@ public sealed class ScheduleOptions
     /// <summary>Metadata tags. Multiple tags separated by + in expression.</summary>
     public IReadOnlyList<string>? Tags { get; init; }
 
+    /// <summary>Misfire/catchup policy for occurrences missed while the scheduler wasn't ticking (or a
+    /// handler was still running). Defaults to <see cref="CatchupPolicy.All"/> when unset.</summary>
+    public CatchupPolicy? Catchup { get; init; }
+
     /// <summary>
     /// Parses an options raw string (the content inside {}).
     /// </summary>
@@ -57,6 +61,7 @@ public sealed class ScheduleOptions
         DateTimeOffset? until = null;
         int? max = null;
         List<string>? tags = null;
+        CatchupPolicy? catchup = null;
 
         // Split by comma, then parse each key:value pair
         var pairs = optionsRaw.Split(',');
@@ -147,6 +152,21 @@ public sealed class ScheduleOptions
                     }
                     break;
 
+                case "catchup":
+                    catchup = value switch
+                    {
+                        "all" => CatchupPolicy.All,
+                        "skip" => CatchupPolicy.Skip,
+                        "once" => CatchupPolicy.Once,
+                        _ => null
+                    };
+                    if (catchup == null)
+                    {
+                        error = $"options: invalid catchup value '{value}'";
+                        return false;
+                    }
+                    break;
+
                 default:
                     error = $"options: unknown option '{key}'";
                     return false;
@@ -161,7 +181,8 @@ public sealed class ScheduleOptions
             From = from,
             Until = until,
             Max = max,
-            Tags = tags?.AsReadOnly()
+            Tags = tags?.AsReadOnly(),
+            Catchup = catchup
         };
         return true;
     }
@@ -195,6 +216,8 @@ public sealed class ScheduleOptions
         // spec §6.1: options sorted by key alphabetical order
         var parts = new List<string>();
 
+        if (Catchup.HasValue)
+            parts.Add($"catchup:{Catchup.Value.ToString().ToLowerInvariant()}");
         if (From.HasValue)
         {
             var f = From.Value;

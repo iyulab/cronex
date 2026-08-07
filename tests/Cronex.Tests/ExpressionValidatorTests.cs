@@ -112,4 +112,111 @@ public class ExpressionValidatorTests
         // Position is null by default (not yet computed)
         result.Errors[0].Position.ShouldBeNull();
     }
+
+    // E018: @once absolute time already in the past (ISSUE-cronex-20260807-090000-once-past-time-silent)
+
+    [Fact]
+    public void Validate_OncePastAbsoluteTime_ErrorE018()
+    {
+        var referenceTime = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
+        var result = ExpressionValidator.Validate("@once 2020-01-01T00:00:00Z", referenceTime);
+        result.Errors.ShouldContain(e => e.Code == "E018");
+    }
+
+    [Fact]
+    public void Validate_OnceFutureAbsoluteTime_NoError()
+    {
+        var referenceTime = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
+        var result = ExpressionValidator.Validate("@once 2030-01-01T00:00:00Z", referenceTime);
+        result.Errors.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void Validate_OnceExactlyAtReferenceTime_ErrorE018()
+    {
+        // "right now" is treated as already-past — by the time Register() runs it will be.
+        var referenceTime = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
+        var result = ExpressionValidator.Validate("@once 2026-01-01T00:00:00Z", referenceTime);
+        result.Errors.ShouldContain(e => e.Code == "E018");
+    }
+
+    [Fact]
+    public void Validate_OnceRelativeDuration_NeverErrorsE018()
+    {
+        // Relative +duration is always future-relative by construction (E017 already guards
+        // non-positive durations) — E018 only applies to the absolute-datetime form.
+        var result = ExpressionValidator.Validate("@once +5m");
+        result.Errors.ShouldNotContain(e => e.Code == "E018");
+    }
+
+    [Fact]
+    public void Validate_OnceNoReferenceTime_UsesUtcNow()
+    {
+        // No referenceTime supplied -> defaults to DateTimeOffset.UtcNow (same convention as
+        // OnceSchedule.TryParse), so a clearly-past absolute time is still caught.
+        var result = ExpressionValidator.Validate("@once 2000-01-01T00:00:00Z");
+        result.Errors.ShouldContain(e => e.Code == "E018");
+    }
+
+    // E019: calendar-impossible day-of-month/month combination
+    // (ISSUE-cronex-20260807-084718-impossible-expression-validation)
+
+    [Fact]
+    public void Validate_Feb30_ErrorE019()
+    {
+        var result = ExpressionValidator.Validate("0 0 30 2 *");
+        result.Errors.ShouldContain(e => e.Code == "E019");
+    }
+
+    [Fact]
+    public void Validate_April31_ErrorE019()
+    {
+        var result = ExpressionValidator.Validate("0 0 31 4 *"); // April has 30 days
+        result.Errors.ShouldContain(e => e.Code == "E019");
+    }
+
+    [Fact]
+    public void Validate_Feb29_NoError_ValidInLeapYears()
+    {
+        var result = ExpressionValidator.Validate("0 0 29 2 *");
+        result.Errors.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void Validate_Jan31_NoError()
+    {
+        var result = ExpressionValidator.Validate("0 0 31 1 *"); // January has 31 days
+        result.Errors.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void Validate_DayOfMonthWildcard_NeverErrorsE019()
+    {
+        var result = ExpressionValidator.Validate("0 0 * 2 *");
+        result.Errors.ShouldNotContain(e => e.Code == "E019");
+    }
+
+    [Fact]
+    public void Validate_LastDayOfMonthSpecial_NeverErrorsE019()
+    {
+        // "L" (special DOM) resolves dynamically per calendar month — never impossible.
+        var result = ExpressionValidator.Validate("0 0 L 2 *");
+        result.Errors.ShouldNotContain(e => e.Code == "E019");
+    }
+
+    [Fact]
+    public void Validate_MonthListWithOneImpossibleDay_ErrorE019Only_WhenAllImpossible()
+    {
+        // Day 31 across Apr/Jun/Sep/Nov (all 30-day months) — impossible for all of them.
+        var result = ExpressionValidator.Validate("0 0 31 4,6,9,11 *");
+        result.Errors.ShouldContain(e => e.Code == "E019");
+    }
+
+    [Fact]
+    public void Validate_MonthListWithOnePossibleDay_NoError()
+    {
+        // Day 31 across Jan (31 days) and Apr (30 days) — possible in January, so not flagged.
+        var result = ExpressionValidator.Validate("0 0 31 1,4 *");
+        result.Errors.ShouldNotContain(e => e.Code == "E019");
+    }
 }

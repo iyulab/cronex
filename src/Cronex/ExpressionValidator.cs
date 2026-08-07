@@ -9,7 +9,13 @@ public static class ExpressionValidator
     /// Validates a Cronex expression string, returning structured errors and warnings.
     /// Unlike TryParse, this collects all issues rather than failing on the first one.
     /// </summary>
-    public static ValidationResult Validate(string expression)
+    /// <param name="expression">The Cronex expression string to validate.</param>
+    /// <param name="referenceTime">
+    /// Reference time used to check whether an <c>@once</c> absolute datetime is already in the
+    /// past (E018). Defaults to <see cref="DateTimeOffset.UtcNow"/> if null — same convention as
+    /// <see cref="OnceSchedule.TryParse"/>.
+    /// </param>
+    public static ValidationResult Validate(string expression, DateTimeOffset? referenceTime = null)
     {
         var errors = new List<ValidationError>();
         var warnings = new List<ValidationWarning>();
@@ -58,7 +64,7 @@ public static class ExpressionValidator
                 ValidateInterval(token.Body, errors);
                 break;
             case ScheduleKind.Once:
-                ValidateOnce(token.Body, errors);
+                ValidateOnce(token.Body, errors, referenceTime);
                 break;
         }
 
@@ -100,15 +106,49 @@ public static class ExpressionValidator
 
         // DOM — might be special (L, W)
         var domRaw = fields[offset + 2];
-        if (!IsSpecialDom(domRaw))
+        var domIsSpecial = IsSpecialDom(domRaw);
+        if (!domIsSpecial)
             ValidateField(domRaw, CronFieldType.DayOfMonth, "E004", errors);
 
-        ValidateField(fields[offset + 3], CronFieldType.Month, "E005", errors);
+        var monthRaw = fields[offset + 3];
+        ValidateField(monthRaw, CronFieldType.Month, "E005", errors);
 
         // DOW — might be special (#, L)
         var dowRaw = fields[offset + 4];
         if (!IsSpecialDow(dowRaw))
             ValidateField(dowRaw, CronFieldType.DayOfWeek, "E006", errors);
+
+        // E019: day-of-month/month combination that never occurs on any calendar (e.g. Feb 30).
+        // Only meaningful once both fields parsed individually clean, and DOM isn't a special form
+        // (L/W/etc. resolve to a real calendar day dynamically each month, so they're never
+        // impossible). day 29 is deliberately not flagged for Feb — it's valid in leap years.
+        if (!domIsSpecial
+            && CronField.TryParse(domRaw, CronFieldType.DayOfMonth, out var domField, out _)
+            && CronField.TryParse(monthRaw, CronFieldType.Month, out var monthField, out _)
+            && !HasPossibleCalendarDate(domField, monthField))
+        {
+            errors.Add(new("E019", "dayofmonth",
+                $"'{domRaw} {monthRaw}' never occurs on any calendar", $"{domRaw} {monthRaw}"));
+        }
+    }
+
+    private static readonly int[] MaxDaysInMonth = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+
+    private static bool HasPossibleCalendarDate(CronField domField, CronField monthField)
+    {
+        for (var month = 1; month <= 12; month++)
+        {
+            if (!monthField.Matches(month))
+                continue;
+
+            var maxDay = MaxDaysInMonth[month - 1];
+            for (var day = 1; day <= maxDay; day++)
+            {
+                if (domField.Matches(day))
+                    return true;
+            }
+        }
+        return false;
     }
 
     private static void ValidateField(string raw, CronFieldType fieldType, string errorCode, List<ValidationError> errors)
@@ -153,7 +193,7 @@ public static class ExpressionValidator
         }
     }
 
-    private static void ValidateOnce(string body, List<ValidationError> errors)
+    private static void ValidateOnce(string body, List<ValidationError> errors, DateTimeOffset? referenceTime)
     {
         var onceBody = body;
         if (onceBody.StartsWith("@once ", StringComparison.Ordinal))
@@ -168,10 +208,20 @@ public static class ExpressionValidator
         {
             if (!CronexDuration.TryParse(onceBody.AsSpan(1), out var d) || d.Value <= TimeSpan.Zero)
                 errors.Add(new("E017", "once", $"relative duration must be positive", onceBody));
+            // A valid relative duration is always in the future relative to referenceTime by
+            // construction — no past-time check applies to the +duration form.
         }
-        else if (!DateTimeOffset.TryParse(onceBody, null, System.Globalization.DateTimeStyles.None, out _))
+        else if (!DateTimeOffset.TryParse(onceBody, null, System.Globalization.DateTimeStyles.None, out var absolute))
         {
             errors.Add(new("E012", "once", $"invalid datetime format '{onceBody}'", onceBody));
+        }
+        else
+        {
+            // E018: an absolute @once time that has already passed registers successfully but never
+            // fires — GetNextOccurrence returns null and the trigger silently does nothing forever.
+            var now = referenceTime ?? DateTimeOffset.UtcNow;
+            if (absolute <= now)
+                errors.Add(new("E018", "once", $"time '{onceBody}' is in the past", onceBody));
         }
     }
 
@@ -186,7 +236,8 @@ public static class ExpressionValidator
                 if (error.Contains("unknown option")) code = "E015";
                 else if (error.Contains("invalid max") || error.Contains("invalid jitter")
                     || error.Contains("invalid stagger") || error.Contains("invalid window")
-                    || error.Contains("invalid from") || error.Contains("invalid until"))
+                    || error.Contains("invalid from") || error.Contains("invalid until")
+                    || error.Contains("invalid catchup"))
                     code = "E016";
             }
             errors.Add(new(code, "options", error ?? "invalid options", optionsRaw));

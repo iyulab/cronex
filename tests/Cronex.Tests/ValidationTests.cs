@@ -37,7 +37,10 @@ public class ValidationTests
     [Fact]
     public void Valid_Once()
     {
-        var result = ExpressionValidator.Validate("@once 2026-01-01T00:00:00Z");
+        // Relative form — never goes stale (E018 only applies to the absolute-datetime form; a
+        // hardcoded absolute date here would eventually fall into the past and fail this test for
+        // an unrelated reason, exactly as "2026-01-01T00:00:00Z" did once 2026 arrived).
+        var result = ExpressionValidator.Validate("@once +5m");
         result.IsValid.ShouldBeTrue();
     }
 

@@ -37,7 +37,7 @@ TZ=Asia/Seoul 0 9 * * MON-FRI {jitter:30s, until:2025-12-31}
 | **`TZ=` prefix** | Timezone-aware, DST-correct evaluation | Schedules run in the business's timezone, not the server's |
 | **Calendar tokens** | `L`, `W`, `LW`, `L-N`, `NW`, `#`, `DOWL` (Quartz-style, not in POSIX cron) | "Last weekday of month", "2nd Monday" — no app-side date math |
 | **`@every` / `@once` / `@daily` ...** | Interval and one-shot shorthand | Express recurring or single-fire schedules without hand-translating to cron fields |
-| **`{...}` options** | `jitter`, `stagger`, `window`, `from`, `until`, `max`, `tag` | Execution-time controls — collision avoidance, deadlines, run caps — normally re-implemented per app |
+| **`{...}` options** | `jitter`, `stagger`, `window`, `from`, `until`, `max`, `tag`, `catchup` | Execution-time controls — collision avoidance, deadlines, run caps, misfire policy — normally re-implemented per app |
 
 When a trigger fires, your handler gets a rich `TriggerContext`. That's it.
 
@@ -82,6 +82,7 @@ The core package has **zero external dependencies**.
 | `until` | date/datetime | Ignore occurrences after this |
 | `max` | int | Stop after N executions |
 | `tag` | string | Metadata tags (`+` separated) |
+| `catchup` | `all` \| `skip` \| `once` | How to handle occurrences missed while the loop wasn't ticking. Default `all` fires every one; `skip` discards the whole backlog; `once` fires only the most recent missed occurrence |
 
 Durations: `500ms`, `30s`, `5m`, `2h`, `1d`, `1h30m`
 

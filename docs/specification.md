@@ -172,7 +172,8 @@ option_key
     | "from"         (* start date: ISO 8601 date or datetime *)
     | "until"        (* expiry date: ISO 8601 date or datetime *)
     | "max"          (* max execution count: positive integer *)
-    | "tag" ;        (* tag: arbitrary string, multiple values joined with + *)
+    | "tag"          (* tag: arbitrary string, multiple values joined with + *)
+    | "catchup" ;    (* misfire policy: "all" | "skip" | "once" *)
 
 option_value
     = duration                (* jitter, window *)
@@ -351,6 +352,7 @@ It is enclosed in `{}` and contains comma-separated key:value pairs.
 | `until` | date/datetime | Occurrences after this time are ignored | none |
 | `max` | integer | Total execution count limit. No more occurrences after reaching max. | unlimited |
 | `tag` | string | Metadata tag. No effect on execution logic. Multiple tags joined with `+`. | none |
+| `catchup` | `all` \| `skip` \| `once` | Misfire policy for occurrences missed while the loop wasn't ticking (stopped, or a prior handler still running). `all` fires every missed occurrence, one per tick. `skip` discards the whole backlog and resumes at the next occurrence after now. `once` fires only the most recent missed occurrence and discards the rest. | `all` |
 
 **`from`/`until` with date-only values:**
 - `from:2025-06-01` → `2025-06-01T00:00:00` (midnight in the applicable timezone)
@@ -507,17 +509,24 @@ The parser applies the following rules and returns a structured list of errors o
 | `E015` | Unknown option key | `options: unknown option '{key}'` |
 | `E016` | Option value type mismatch | `options.{key}: expected {type}, got '{v}'` |
 | `E017` | @once relative duration is positive | `once: relative duration must be positive` |
+| `E018` | @once absolute time is not already in the past (vs. `Validate`'s `referenceTime`, default `UtcNow`) | `once: time '{v}' is in the past` |
 
 ### 5.3 Logical Validation
 
 | Rule ID | Validation | Error message |
 |---------|------------|---------------|
+| `E019` | Cron day-of-month/month combination occurs on at least one calendar (e.g. rejects `30 2` — Feb 30 — but not `29 2`, valid in leap years). Only checked when day-of-month isn't a special form (`L`/`W`/etc.) | `dayOfMonth: '{dom} {month}' never occurs on any calendar` |
 | `E020` | from < until | `options: 'from' must be before 'until'` |
-| `E021` | max > 0 | `options.max: must be positive, got {v}` |
 | `E022` | jitter < 50% of schedule min interval | `options.jitter: {v} exceeds 50% of schedule interval` (warning) |
 | `E023` | window > 0 | `options.window: must be positive` |
 | `E024` | stagger > 0 | `options.stagger: must be positive` |
 | `E025` | stagger < schedule min interval | `options.stagger: {v} exceeds schedule interval` (warning) |
+
+**`E021` is reserved and not currently emitted.** `max`'s positivity is already enforced one layer
+earlier, at option parsing (`max <= 0` fails there as `E016`, "expected {type}"), so the
+parsed-but-logically-invalid stage the other `E02x` codes handle (parse succeeds, then a
+cross-field/value check fails) never applies to `max` — there's no reachable code path that would
+produce `E021`. Earlier revisions of this table documented it as if there were.
 
 ### 5.4 Warning Codes
 

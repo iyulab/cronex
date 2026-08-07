@@ -31,6 +31,27 @@ here even when no code changed.
   until the nearest upcoming trigger's effective fire time (nominal occurrence + stagger + jitter),
   clamped to `[10ms, 1s]`.
 
+### Added
+
+- `ExpressionValidator.Validate` gained an optional `referenceTime` parameter (defaults to
+  `DateTimeOffset.UtcNow`, same convention as `OnceSchedule.TryParse`) and two new error codes:
+  - `E018` — an `@once` absolute datetime that has already passed. Previously this parsed
+    successfully, registered successfully, and then silently never fired (`GetNextOccurrence`
+    returns `null` for a past one-shot time) — the worst kind of failure, one that looks like
+    success.
+  - `E019` — a cron day-of-month/month combination that can never occur on any calendar (e.g.
+    `30 2` — February 30th). Previously this also parsed successfully and silently never fired.
+    Deliberately does not flag `29 2` (February 29th) — it's valid in leap years.
+- Also fixed: `docs/specification.md`'s validation-rules table documented `E021` ("`max` must be
+  positive") as if it were reachable. It never was — `max <= 0` is already rejected one layer
+  earlier, during option parsing, as `E016`. Corrected the table; `E021` is reserved and unused.
+- New `catchup` option (`{catchup:all|skip|once}`, default `all`) makes misfire behavior explicit
+  instead of implicit. Previously, occurrences missed while the loop wasn't ticking (or a prior
+  handler was still running) always fired one per subsequent tick with no way to opt out — the only
+  behavior available is now the explicit `all` default. `skip` discards the whole missed backlog and
+  resumes at the next occurrence after now; `once` fires only the most recent missed occurrence.
+  Invalid `catchup` values are rejected by `ExpressionValidator` as `E016`.
+
 ## 0.3.3
 
 ### Fixed

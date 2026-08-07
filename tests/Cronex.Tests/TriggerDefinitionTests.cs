@@ -158,4 +158,63 @@ public class TriggerDefinitionTests
         reg.Metadata.ShouldNotBeNull();
         reg.Metadata!["env"].ShouldBe("test");
     }
+
+    // AOT/trimming: source-generated JsonSerializerContext
+    // (ISSUE-cronex-20260807-084721-aot-and-json-source-gen)
+
+    [Fact]
+    public void SourceGenContext_SerializeThenDeserialize_RoundTrips()
+    {
+        var def = new TriggerDefinition
+        {
+            Id = "my-trigger",
+            Expression = "0 9 * * MON-FRI",
+            Metadata = new Dictionary<string, string> { ["scope"] = "production" }
+        };
+
+        var json = JsonSerializer.Serialize(def, TriggerDefinitionJsonContext.Default.TriggerDefinition);
+        var deserialized = JsonSerializer.Deserialize(json, TriggerDefinitionJsonContext.Default.TriggerDefinition);
+
+        deserialized.ShouldNotBeNull();
+        deserialized!.Id.ShouldBe("my-trigger");
+        deserialized.Expression.ShouldBe("0 9 * * MON-FRI");
+        deserialized.Metadata!["scope"].ShouldBe("production");
+    }
+
+    [Fact]
+    public void SourceGenContext_ProducesIdenticalJson_ToReflectionBasedSerialization()
+    {
+        var def = new TriggerDefinition
+        {
+            Id = "health-check",
+            Expression = "TZ=UTC @every 15m {stagger:3m}",
+            Enabled = false,
+            Metadata = new Dictionary<string, string> { ["env"] = "prod" }
+        };
+
+        var reflectionJson = JsonSerializer.Serialize(def);
+        var sourceGenJson = JsonSerializer.Serialize(def, TriggerDefinitionJsonContext.Default.TriggerDefinition);
+
+        sourceGenJson.ShouldBe(reflectionJson);
+    }
+
+    [Fact]
+    public void SourceGenContext_DeserializesReflectionSerializedJson()
+    {
+        // Cross-compatibility: JSON from an external system (or the reflection path) must be
+        // readable via the source-gen context — they share the same [JsonPropertyName] contract.
+        var json = """
+        {
+            "id": "health-check",
+            "expression": "TZ=UTC @every 15m {stagger:3m}",
+            "enabled": true,
+            "metadata": { "env": "prod" }
+        }
+        """;
+
+        var def = JsonSerializer.Deserialize(json, TriggerDefinitionJsonContext.Default.TriggerDefinition);
+        def.ShouldNotBeNull();
+        def!.Id.ShouldBe("health-check");
+        def.Metadata!["env"].ShouldBe("prod");
+    }
 }

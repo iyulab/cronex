@@ -64,6 +64,14 @@ here even when no code changed.
   real formatting violation the new gate found: 69 indentation errors in `CronexExpression.cs`'s two
   `switch` statements (block-braced `case` content wasn't indented one level deeper, contrary to
   `.editorconfig`) — whitespace-only, confirmed with `git diff --ignore-all-space` before committing.
+- `Cronex.Net` now declares `<IsAotCompatible>true</IsAotCompatible>` and ships
+  `TriggerDefinitionJsonContext`, a source-generated `JsonSerializerContext` for
+  `TriggerDefinition`. Previously "JSON-serializable" only worked through reflection-based
+  `System.Text.Json`, which Native AOT/trimming doesn't support — nothing verified this actually
+  worked under AOT. Verified with a real `dotnet publish -r win-x64 -p:PublishAot=true` smoke app
+  referencing this package: publishes with zero trim/AOT warnings, and the resulting
+  fully-native, no-runtime-required executable correctly serializes/deserializes a
+  `TriggerDefinition` through the new context and parses/evaluates a `CronexExpression`.
 - `CronexScheduler.Update(id, expression, [handler], [referenceTime])` — 4 overloads (string or
   pre-parsed `CronexExpression`, keeping or replacing the handler) replace a trigger's expression in
   place. Previously the only way to change a running trigger's schedule was `Unregister` + `Register`,

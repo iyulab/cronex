@@ -104,62 +104,62 @@ public sealed partial class CronexExpression
         switch (token.Kind)
         {
             case ScheduleKind.Cron:
-            {
-                var fields = token.Body.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-                if (!Cronex.CronSchedule.TryParse(fields, out var cs, out error))
-                    return false;
-                cronSchedule = cs;
-                break;
-            }
+                {
+                    var fields = token.Body.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                    if (!Cronex.CronSchedule.TryParse(fields, out var cs, out error))
+                        return false;
+                    cronSchedule = cs;
+                    break;
+                }
 
             case ScheduleKind.Alias:
-            {
-                if (!CronAlias.TryResolve(token.Body, out var aliasFields))
                 {
-                    error = $"Unknown alias '{token.Body}'";
-                    return false;
+                    if (!CronAlias.TryResolve(token.Body, out var aliasFields))
+                    {
+                        error = $"Unknown alias '{token.Body}'";
+                        return false;
+                    }
+                    if (!Cronex.CronSchedule.TryParse(aliasFields!, out var cs, out error))
+                        return false;
+                    cronSchedule = cs;
+                    break;
                 }
-                if (!Cronex.CronSchedule.TryParse(aliasFields!, out var cs, out error))
-                    return false;
-                cronSchedule = cs;
-                break;
-            }
 
             case ScheduleKind.Interval:
-            {
-                // Body is "@every 30m" or "@every 1h-2h"
-                var intervalBody = token.Body;
-                if (intervalBody.StartsWith("@every ", StringComparison.Ordinal))
-                    intervalBody = intervalBody[7..];
-                else
                 {
-                    error = "every: missing duration after @every";
-                    return false;
-                }
+                    // Body is "@every 30m" or "@every 1h-2h"
+                    var intervalBody = token.Body;
+                    if (intervalBody.StartsWith("@every ", StringComparison.Ordinal))
+                        intervalBody = intervalBody[7..];
+                    else
+                    {
+                        error = "every: missing duration after @every";
+                        return false;
+                    }
 
-                if (!Cronex.IntervalSchedule.TryParse(intervalBody, out var ivl, out error))
-                    return false;
-                intervalSchedule = ivl;
-                break;
-            }
+                    if (!Cronex.IntervalSchedule.TryParse(intervalBody, out var ivl, out error))
+                        return false;
+                    intervalSchedule = ivl;
+                    break;
+                }
 
             case ScheduleKind.Once:
-            {
-                // Body is "@once 2025-..." or "@once +20m"
-                var onceBody = token.Body;
-                if (onceBody.StartsWith("@once ", StringComparison.Ordinal))
-                    onceBody = onceBody[6..];
-                else
                 {
-                    error = "once: missing value after @once";
-                    return false;
-                }
+                    // Body is "@once 2025-..." or "@once +20m"
+                    var onceBody = token.Body;
+                    if (onceBody.StartsWith("@once ", StringComparison.Ordinal))
+                        onceBody = onceBody[6..];
+                    else
+                    {
+                        error = "once: missing value after @once";
+                        return false;
+                    }
 
-                if (!Cronex.OnceSchedule.TryParse(onceBody, out var os, out error, referenceTime))
-                    return false;
-                onceSchedule = os;
-                break;
-            }
+                    if (!Cronex.OnceSchedule.TryParse(onceBody, out var os, out error, referenceTime))
+                        return false;
+                    onceSchedule = os;
+                    break;
+                }
         }
 
         // Parse options block
@@ -237,29 +237,29 @@ public sealed partial class CronexExpression
         {
             case ScheduleKind.Cron:
             case ScheduleKind.Alias:
-            {
-                var adjustedFrom = from;
-                if (Options.From.HasValue && adjustedFrom < Options.From.Value)
-                    adjustedFrom = Options.From.Value.AddSeconds(-1); // Cron Next() adds 1 second
-                return GetNextCronOccurrence(adjustedFrom);
-            }
+                {
+                    var adjustedFrom = from;
+                    if (Options.From.HasValue && adjustedFrom < Options.From.Value)
+                        adjustedFrom = Options.From.Value.AddSeconds(-1); // Cron Next() adds 1 second
+                    return GetNextCronOccurrence(adjustedFrom);
+                }
 
             case ScheduleKind.Interval:
-            {
-                var adjustedFrom = from;
-                if (Options.From.HasValue && adjustedFrom < Options.From.Value)
-                    adjustedFrom = Options.From.Value; // Exact: interval adds from this point
-                return GetNextIntervalOccurrence(adjustedFrom);
-            }
+                {
+                    var adjustedFrom = from;
+                    if (Options.From.HasValue && adjustedFrom < Options.From.Value)
+                        adjustedFrom = Options.From.Value; // Exact: interval adds from this point
+                    return GetNextIntervalOccurrence(adjustedFrom);
+                }
 
             case ScheduleKind.Once:
-            {
-                var result = GetNextOnceOccurrence(from);
-                // Apply From constraint after calculation
-                if (result.HasValue && Options.From.HasValue && result.Value < Options.From.Value)
-                    return null;
-                return result;
-            }
+                {
+                    var result = GetNextOnceOccurrence(from);
+                    // Apply From constraint after calculation
+                    if (result.HasValue && Options.From.HasValue && result.Value < Options.From.Value)
+                        return null;
+                    return result;
+                }
 
             default:
                 return null;

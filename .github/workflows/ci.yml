@@ -12,7 +12,11 @@ concurrency:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 20
 
     steps:
@@ -31,3 +35,14 @@ jobs:
 
     - name: Test
       run: dotnet test Cronex.slnx --no-build --configuration Release --verbosity normal
+
+    # Timezone/DST handling (spec §3.5) is this library's highest-risk area to run on one platform
+    # only — that's what the matrix above is for. The two checks below are build-validation, not
+    # platform-sensitive, so they run once (ubuntu) rather than doubling CI minutes for no signal.
+    - name: Format check
+      if: matrix.os == 'ubuntu-latest'
+      run: dotnet format Cronex.slnx --verify-no-changes
+
+    - name: Pack (verify only)
+      if: matrix.os == 'ubuntu-latest'
+      run: dotnet pack Cronex.slnx --no-build --configuration Release --output ${{ runner.temp }}/pack-verify

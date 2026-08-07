@@ -56,6 +56,14 @@ here even when no code changed.
   Cronex already borrowed `L`/`W`/`LW`/`L-N`/`NW`/`#`/`DOWL` from Quartz; `?` was the one common
   Quartz token that previously failed to parse, blocking a straight paste of many real-world Quartz
   expressions.
+- CI now runs on a `windows-latest` matrix leg alongside `ubuntu-latest` — this library's highest-
+  risk area (timezone/DST handling, spec §3.5) had never actually run on Windows before. CI also
+  gates on `dotnet format --verify-no-changes` and a `dotnet pack` build-validation (no artifact
+  upload — CI validates, it doesn't publish). Neither check ran before, which is exactly how the
+  README/`PackageId` mismatch fixed earlier in this release reached `main` unnoticed. Fixed the one
+  real formatting violation the new gate found: 69 indentation errors in `CronexExpression.cs`'s two
+  `switch` statements (block-braced `case` content wasn't indented one level deeper, contrary to
+  `.editorconfig`) — whitespace-only, confirmed with `git diff --ignore-all-space` before committing.
 - `CronexScheduler.Update(id, expression, [handler], [referenceTime])` — 4 overloads (string or
   pre-parsed `CronexExpression`, keeping or replacing the handler) replace a trigger's expression in
   place. Previously the only way to change a running trigger's schedule was `Unregister` + `Register`,

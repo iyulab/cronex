@@ -111,6 +111,11 @@ var result2 = ExpressionValidator.Validate("@every 10m {jitter:6m}");
 // result2.IsValid → true
 // result2.Warnings[0]:
 //   Code: "E022" — jitter exceeds 50% of schedule interval
+
+// Human-readable description
+var expr2 = CronexExpression.Parse("TZ=Asia/Seoul 0 9 * * MON-FRI");
+Console.WriteLine(expr2.Describe());
+// "At 09:00, Monday through Friday (Asia/Seoul)"
 ```
 
 ## Trigger & Schedule
@@ -264,8 +269,8 @@ Requires **.NET 10** or later.
 | | Cronex | Cronos | Quartz.NET | NCrontab |
 |---|---------|--------|------------|----------|
 | **Role** | Parser + mini scheduler | Parser only | Full job framework | Parser only |
-| **Expression** | Standard cron + TZ, @every, @once, jitter, stagger, window, from/until/max — all in one string | 6-field cron | Cron + calendar triggers (API) | 5-field cron |
-| **Special entries** | L, W, LW, L-N, NW, #, DOWL | — | L, W, # | — |
+| **Expression** | Standard cron + TZ, @every, @once, jitter, stagger, window, from/until/max — all in one string | 6-field cron | Cron + calendar triggers (API) | 5-field cron, 6-field opt-in |
+| **Special entries** | L, W, LW, L-N, NW, #, DOWL | L, W, # | L, W, # | — |
 | **DST handling** | Built-in (Vixie Cron) | Built-in | Built-in | — |
 | **Dependencies** | Zero (BCL only) | Zero | Multiple | Zero |
 | **Scheduler** | Lightweight, event-driven | — | Heavyweight, persistent | — |

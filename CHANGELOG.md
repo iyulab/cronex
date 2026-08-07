@@ -6,9 +6,59 @@ Versions are `0.x` and breaking changes may occur in a minor bump. Dependency fl
 part of the public surface: raising one can break a consumer's restore, so a raise is called out
 here even when no code changed.
 
+## 0.4.0
+
+### Fixed
+
+- **Breaking**: `stagger` offsets are now computed with a stable FNV-1a hash over the trigger ID's
+  UTF-8 bytes instead of `string.GetHashCode()`. Even via the `StringComparison` overload,
+  `GetHashCode()` uses .NET's randomized string hashing (Marvin32 with a per-process random seed) —
+  the overload only changes comparison rules, not the seed. `stagger` is documented as "deterministic
+  fixed offset ... based on trigger ID", but the old implementation gave every trigger ID a different
+  offset on every process restart, and a different offset on every node in a multi-instance
+  deployment — the exact stampede-avoidance scenario `stagger` exists for. The computed offset value
+  for a given trigger ID changes as a result; anything asserting a specific stagger offset (there is
+  no supported way to do this today — offsets are internal) would need to be updated. Golden values
+  for representative IDs are locked by `StaggerHashTests`.
+- `jitter` was redrawn on every poll of the same still-pending occurrence instead of once — the
+  effective delay was `U[0, jitter)` retried every ~1s until a draw happened to be below the elapsed
+  time, which skews the actual distribution well below the documented `U[0, jitter)` median. Jitter
+  is now drawn once, when `NextFireTime` is set (registration, or recomputed after firing/skip), and
+  held for that occurrence.
+- The tick loop polled on a fixed 1-second `Task.Delay`, so sub-second `window`/`jitter` options were
+  effectively unusable (a due-and-expired window could go unnoticed for up to a second) and a slow
+  handler added directly to the next poll's delay with no correction. The loop now waits exactly
+  until the nearest upcoming trigger's effective fire time (nominal occurrence + stagger + jitter),
+  clamped to `[10ms, 1s]`.
+
 ## 0.3.3
 
 ### Fixed
+
+- The tick loop no longer stops permanently when an event subscriber (`TriggerFiring`,
+  `TriggerCompleted`, `TriggerFailed`, `TriggerSkipped`) throws. Previously an uncaught subscriber
+  exception faulted the internal loop task; nothing observed the fault, `Start()` silently became a
+  no-op afterward (the running-guard was still set), and every trigger stopped firing with no
+  indication why. Each event invocation is now isolated, and a new `SchedulerFaulted` event reports
+  any error the loop itself catches while continuing to run.
+- A `TriggerCompleted` subscriber that threw was misattributed as a handler failure — the same
+  `catch (Exception)` block around the handler call also covered the `TriggerCompleted` invocation,
+  so a successful run could still fire `TriggerFailed`. `TriggerCompleted`/`TriggerFailed` now
+  reflect only the handler's own outcome.
+- Two concurrent `TickAsync` calls (e.g. a manual call racing the automatic loop) observing the same
+  due trigger could both fire it once each, since the "is it due" read and the "claim it" write to
+  `NextFireTime` were separate locked operations with a gap between them. Claiming an occurrence is
+  now a single atomic compare-and-clear (`TriggerRegistration.TryClaim`).
+- A disabled trigger left past its scheduled time re-reported `TriggerSkipped("disabled")` on every
+  tick indefinitely, because `NextFireTime` was never advanced while disabled. It now advances past
+  every occurrence already missed in a single tick, so a long-disabled trigger reports the skip once
+  per backlog instead of once per poll.
+
+### Added
+
+- `CronexScheduler.SchedulerFaulted` — fired when the internal tick loop catches an unexpected error;
+  the loop keeps running afterward.
+- `CronexScheduler.IsRunning` — whether the automatic tick loop (via `Start()`) is currently active.
 
 - `Cronex.Net.Hosting` declared `Microsoft.Extensions.Hosting.Abstractions` with the floating range
   `10.*`, so the floor written into the published nuspec was whatever version happened to be latest

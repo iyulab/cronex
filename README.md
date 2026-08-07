@@ -164,7 +164,13 @@ scheduler.TriggerFiring    += ctx => logger.LogDebug("Firing {Id}", ctx.TriggerI
 scheduler.TriggerCompleted += ctx => logger.LogInformation("{Id} done", ctx.TriggerId);
 scheduler.TriggerFailed    += (ctx, ex) => logger.LogError(ex, "{Id} failed", ctx.TriggerId);
 scheduler.TriggerSkipped   += (id, reason) => logger.LogWarning("{Id} skipped: {Reason}", id, reason);
+scheduler.SchedulerFaulted += ex => logger.LogCritical(ex, "Tick loop caught an unexpected error");
 ```
+
+A throwing event subscriber is isolated per-invocation — it cannot stop the tick loop, and it cannot
+be misattributed to `TriggerFailed` (a `TriggerCompleted` subscriber that throws does not turn a
+successful run into a reported failure). `SchedulerFaulted` is the escape hatch for the loop's own
+unexpected errors; the loop keeps running after firing it.
 
 ### Runtime Control
 
@@ -172,6 +178,7 @@ scheduler.TriggerSkipped   += (id, reason) => logger.LogWarning("{Id} skipped: {
 scheduler.SetEnabled("sync", false);  // pause
 scheduler.SetEnabled("sync", true);   // resume
 scheduler.Unregister("old-job");      // remove
+scheduler.IsRunning;                  // true while Start() has an active tick loop
 ```
 
 ## TriggerContext

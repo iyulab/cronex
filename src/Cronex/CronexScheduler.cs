@@ -37,6 +37,17 @@ public sealed class CronexScheduler : IAsyncDisposable
     public event Action<string, string>? TriggerSkipped;
 
     /// <summary>
+    /// Fired when the internal tick loop catches an unexpected error while ticking. The loop keeps
+    /// running after this — it is a signal to observers, not a shutdown notice. A subscriber
+    /// throwing from any event above no longer stops the loop; this event is how you find out it
+    /// happened.
+    /// </summary>
+    public event Action<Exception>? SchedulerFaulted;
+
+    /// <summary>Whether the automatic tick loop (started via <see cref="Start"/>) is currently running.</summary>
+    public bool IsRunning => Volatile.Read(ref _started) == 1;
+
+    /// <summary>
     /// Registers a trigger with the scheduler.
     /// </summary>
     /// <param name="id">Unique identifier for this trigger.</param>
@@ -181,99 +192,121 @@ public sealed class CronexScheduler : IAsyncDisposable
 
         foreach (var reg in _triggers.Values)
         {
-            if (reg.NextFireTime == null)
+            var nextFireTime = reg.NextFireTime;
+            if (nextFireTime == null)
                 continue;
 
             if (!reg.Enabled)
             {
-                if (now >= reg.NextFireTime.Value)
-                    TriggerSkipped?.Invoke(reg.Id, "disabled");
+                if (now >= nextFireTime.Value)
+                {
+                    SafeInvoke(() => TriggerSkipped?.Invoke(reg.Id, "disabled"), nameof(TriggerSkipped));
+                    // E-1: Fast-forward past every occurrence already missed while disabled, not
+                    // just the one just observed — otherwise a trigger disabled for a long stretch
+                    // re-reports "disabled" once per missed occurrence as later ticks each walk one
+                    // step at a time, instead of catching up to `now` in a single tick.
+                    var advanced = reg.Expression.GetNextOccurrence(nextFireTime.Value);
+                    while (advanced.HasValue && advanced.Value <= now)
+                        advanced = reg.Expression.GetNextOccurrence(advanced.Value);
+                    reg.NextFireTime = advanced;
+                }
                 continue;
             }
 
             // Calculate effective fire time with stagger offset
-            var effectiveFireTime = reg.NextFireTime.Value;
+            var effectiveFireTime = nextFireTime.Value;
             if (reg.Expression.Options.Stagger.HasValue)
             {
                 var staggerOffset = ComputeStaggerOffset(reg.Id, reg.Expression.Options.Stagger.Value.Value);
                 effectiveFireTime = effectiveFireTime.Add(staggerOffset);
             }
 
-            // M-2: Apply jitter
-            if (reg.Expression.Options.Jitter.HasValue)
+            // M-2 / J-1: Apply jitter — drawn once when NextFireTime was set (TriggerRegistration),
+            // not re-rolled here on every tick that observes the same still-pending occurrence.
+            if (reg.JitterOffset.HasValue)
+                effectiveFireTime = effectiveFireTime.Add(reg.JitterOffset.Value);
+
+            if (now < effectiveFireTime)
+                continue;
+
+            // Check max
+            if (reg.Expression.Options.Max.HasValue && reg.FireCount >= reg.Expression.Options.Max.Value)
             {
-                var jitterMs = (long)reg.Expression.Options.Jitter.Value.Value.TotalMilliseconds;
-                if (jitterMs > 0)
-                {
-                    var jitterDelay = TimeSpan.FromMilliseconds(Random.Shared.NextInt64(jitterMs));
-                    effectiveFireTime = effectiveFireTime.Add(jitterDelay);
-                }
+                // D-1: claim before reporting so a concurrent TickAsync call can't also observe
+                // and report the same terminal transition.
+                if (reg.TryClaim(nextFireTime.Value))
+                    SafeInvoke(() => TriggerSkipped?.Invoke(reg.Id, "max reached"), nameof(TriggerSkipped));
+                continue;
             }
 
-            if (now >= effectiveFireTime)
+            // D-1: Atomically claim this occurrence. Two concurrent TickAsync calls (e.g. a manual
+            // call racing the automatic loop) can both observe the same due NextFireTime; only the
+            // one that wins the compare-and-swap proceeds, so the trigger fires at most once.
+            if (!reg.TryClaim(nextFireTime.Value))
+                continue;
+
+            var scheduledTime = nextFireTime.Value;
+
+            // Issue 5: Window check against nominal scheduled time only (not widened by jitter)
+            if (reg.Expression.Options.Window.HasValue)
             {
-                // Check max
-                if (reg.Expression.Options.Max.HasValue && reg.FireCount >= reg.Expression.Options.Max.Value)
+                var windowEnd = scheduledTime.Add(reg.Expression.Options.Window.Value.Value);
+                if (now > windowEnd)
                 {
-                    TriggerSkipped?.Invoke(reg.Id, "max reached");
-                    reg.NextFireTime = null;
+                    SafeInvoke(() => TriggerSkipped?.Invoke(reg.Id, "window exceeded"), nameof(TriggerSkipped));
+                    reg.NextFireTime = reg.Expression.GetNextOccurrence(scheduledTime);
                     continue;
                 }
-
-                var scheduledTime = reg.NextFireTime.Value;
-
-                // C-3: Set NextFireTime to null before handler to prevent double-fire
-                reg.NextFireTime = null;
-
-                // Issue 5: Window check against nominal scheduled time only (not widened by jitter)
-                if (reg.Expression.Options.Window.HasValue)
-                {
-                    var windowEnd = scheduledTime.Add(reg.Expression.Options.Window.Value.Value);
-                    if (now > windowEnd)
-                    {
-                        TriggerSkipped?.Invoke(reg.Id, "window exceeded");
-                        reg.NextFireTime = reg.Expression.GetNextOccurrence(scheduledTime);
-                        continue;
-                    }
-                }
-
-                var actualTime = now;
-
-                Interlocked.Increment(ref reg._fireCount);
-                reg.LastFired = actualTime;
-
-                var context = new TriggerContext(reg.Id, scheduledTime, actualTime, reg.FireCount, reg.Expression, reg.Metadata);
-
-                TriggerFiring?.Invoke(context);
-
-                try
-                {
-                    await reg.Handler(context, ct);
-                    TriggerCompleted?.Invoke(context);
-                }
-                catch (OperationCanceledException) when (ct.IsCancellationRequested)
-                {
-                    // Issue 2: Restore NextFireTime before propagating cancellation
-                    reg.NextFireTime = reg.Expression.GetNextOccurrence(scheduledTime);
-                    throw;
-                }
-                catch (Exception ex)
-                {
-                    // C-4: Fallback to Trace when no subscribers
-                    if (TriggerFailed != null)
-                        TriggerFailed.Invoke(context, ex);
-                    else
-                        System.Diagnostics.Trace.TraceError(
-                            "Cronex trigger '{0}' failed: {1}", reg.Id, ex);
-                }
-
-                // Calculate next fire time
-                reg.NextFireTime = reg.Expression.GetNextOccurrence(scheduledTime);
-
-                // Check if max reached after firing
-                if (reg.Expression.Options.Max.HasValue && reg.FireCount >= reg.Expression.Options.Max.Value)
-                    reg.NextFireTime = null;
             }
+
+            var actualTime = now;
+
+            Interlocked.Increment(ref reg._fireCount);
+            reg.LastFired = actualTime;
+
+            var context = new TriggerContext(reg.Id, scheduledTime, actualTime, reg.FireCount, reg.Expression, reg.Metadata);
+
+            SafeInvoke(() => TriggerFiring?.Invoke(context), nameof(TriggerFiring));
+
+            Exception? handlerException = null;
+            try
+            {
+                await reg.Handler(context, ct);
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                // Issue 2: Restore NextFireTime before propagating cancellation
+                reg.NextFireTime = reg.Expression.GetNextOccurrence(scheduledTime);
+                throw;
+            }
+            catch (Exception ex)
+            {
+                handlerException = ex;
+            }
+
+            // C-1: TriggerCompleted/TriggerFailed now reflect only the handler's own outcome — a
+            // subscriber throwing from either no longer gets misattributed as a handler failure.
+            if (handlerException == null)
+            {
+                SafeInvoke(() => TriggerCompleted?.Invoke(context), nameof(TriggerCompleted));
+            }
+            else if (TriggerFailed != null)
+            {
+                // C-4: Fallback to Trace when no subscribers
+                SafeInvoke(() => TriggerFailed.Invoke(context, handlerException), nameof(TriggerFailed));
+            }
+            else
+            {
+                System.Diagnostics.Trace.TraceError(
+                    "Cronex trigger '{0}' failed: {1}", reg.Id, handlerException);
+            }
+
+            // Calculate next fire time
+            reg.NextFireTime = reg.Expression.GetNextOccurrence(scheduledTime);
+
+            // Check if max reached after firing
+            if (reg.Expression.Options.Max.HasValue && reg.FireCount >= reg.Expression.Options.Max.Value)
+                reg.NextFireTime = null;
         }
     }
 
@@ -281,8 +314,95 @@ public sealed class CronexScheduler : IAsyncDisposable
     {
         while (!ct.IsCancellationRequested)
         {
-            await TickAsync(ct);
-            await Task.Delay(TimeSpan.FromSeconds(1), _timeProvider, ct);
+            try
+            {
+                await TickAsync(ct);
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                break;
+            }
+            catch (Exception ex)
+            {
+                // B-1: A tick failure (including an event subscriber that escaped SafeInvoke, or a
+                // defect in Cronex itself) must not silently kill the loop task — that leaves the
+                // scheduler permanently stopped with _started still 1, so Start() is a no-op and
+                // nobody observes it. Report and keep ticking.
+                SafeInvoke(() => SchedulerFaulted?.Invoke(ex), nameof(SchedulerFaulted));
+            }
+
+            try
+            {
+                await Task.Delay(ComputeNextPollDelay(), _timeProvider, ct);
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                break;
+            }
+        }
+    }
+
+    /// <summary>Poll interval floor — avoids a busy loop when a trigger is imminently due.</summary>
+    private static readonly TimeSpan MinPollInterval = TimeSpan.FromMilliseconds(10);
+
+    /// <summary>
+    /// Poll interval ceiling — bounds how stale the "next due time" snapshot can get, so a newly
+    /// registered or re-enabled trigger is never picked up more than this long after the fact.
+    /// </summary>
+    private static readonly TimeSpan MaxPollInterval = TimeSpan.FromSeconds(1);
+
+    /// <summary>
+    /// P-1: Computes how long the tick loop should sleep before its next poll, based on the nearest
+    /// upcoming effective fire time (nominal occurrence + stagger + jitter) across all registered
+    /// triggers, clamped to [<see cref="MinPollInterval"/>, <see cref="MaxPollInterval"/>]. Replaces
+    /// a fixed 1-second delay, which capped sub-second `window`/`jitter` precision at 1 second and
+    /// let "1s + handler time" compound into growing lateness with no correction.
+    /// </summary>
+    internal TimeSpan ComputeNextPollDelay()
+    {
+        var now = _timeProvider.GetUtcNow();
+        DateTimeOffset? earliest = null;
+
+        foreach (var reg in _triggers.Values)
+        {
+            var nextFireTime = reg.NextFireTime;
+            if (nextFireTime == null)
+                continue;
+
+            var effectiveFireTime = nextFireTime.Value;
+            if (reg.Expression.Options.Stagger.HasValue)
+                effectiveFireTime = effectiveFireTime.Add(
+                    ComputeStaggerOffset(reg.Id, reg.Expression.Options.Stagger.Value.Value));
+            if (reg.JitterOffset.HasValue)
+                effectiveFireTime = effectiveFireTime.Add(reg.JitterOffset.Value);
+
+            if (earliest == null || effectiveFireTime < earliest.Value)
+                earliest = effectiveFireTime;
+        }
+
+        if (earliest == null)
+            return MaxPollInterval;
+
+        var wait = earliest.Value - now;
+        if (wait < MinPollInterval) return MinPollInterval;
+        if (wait > MaxPollInterval) return MaxPollInterval;
+        return wait;
+    }
+
+    /// <summary>
+    /// Invokes an event delegate, isolating the tick loop from subscriber exceptions. A throwing
+    /// subscriber is a bug in the consumer's code, not a reason to stop scheduling every trigger.
+    /// </summary>
+    private static void SafeInvoke(Action invoke, string eventName)
+    {
+        try
+        {
+            invoke();
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Trace.TraceError(
+                "Cronex event subscriber for '{0}' threw: {1}", eventName, ex);
         }
     }
 
@@ -292,11 +412,32 @@ public sealed class CronexScheduler : IAsyncDisposable
     /// </summary>
     private static TimeSpan ComputeStaggerOffset(string triggerId, TimeSpan stagger)
     {
-        var hash = (uint)triggerId.GetHashCode(StringComparison.Ordinal);
+        var hash = Fnv1a32(triggerId);
         var staggerMs = (long)stagger.TotalMilliseconds;
         if (staggerMs <= 0) return TimeSpan.Zero;
         var offsetMs = (long)(hash % (ulong)staggerMs);
         return TimeSpan.FromMilliseconds(offsetMs);
+    }
+
+    /// <summary>
+    /// FNV-1a over the trigger ID's UTF-8 bytes. <c>string.GetHashCode()</c> — even the
+    /// <c>StringComparison</c> overload — is randomized per process (Marvin32 with a random seed;
+    /// the overload only changes comparison rules, not the seed), so it cannot back a "same ID,
+    /// same offset across restarts and machines" contract. FNV-1a has no seed: same bytes in,
+    /// same value out, everywhere.
+    /// </summary>
+    private static uint Fnv1a32(string value)
+    {
+        const uint offsetBasis = 2166136261;
+        const uint prime = 16777619;
+
+        var hash = offsetBasis;
+        foreach (var b in System.Text.Encoding.UTF8.GetBytes(value))
+        {
+            hash ^= b;
+            hash *= prime;
+        }
+        return hash;
     }
 
     /// <inheritdoc />

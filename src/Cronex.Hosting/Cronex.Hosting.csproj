@@ -14,7 +14,10 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.*" />
+    <!-- Exact lowest supported version, not a range. A floating range makes the published
+         nuspec floor whatever happened to be latest at pack time, so consumers pinned below
+         it break on restore without any source change to point at. -->
+    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.0.0" />
   </ItemGroup>
 
 </Project>

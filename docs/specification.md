@@ -676,3 +676,26 @@ Cronex does not interpret metadata keys. The following are recommended conventio
 | `delivery.channel` | Notification channel | `"slack"`, `"email"` |
 
 These are conventions, not enforcement. Consuming apps are free to define their own keys.
+
+### 7.4 Persistence Boundary
+
+Cronex owns the in-process trigger registry only. It does not persist triggers across restarts, and it
+never will — that would pull a database or file store into a zero-dependency library.
+
+`TriggerDefinition` (§7.1) is the designed extension point for persistence: it carries everything needed
+to store and rehydrate a trigger — `id`, `expression`, `enabled`, `metadata` — without the runtime handler
+(delegate), which cannot be serialized and is not Cronex's concern.
+
+What Cronex guarantees:
+1. `TriggerDefinition` round-trips through JSON without loss (§7.1 schema).
+2. `Validate()` can check a definition's expression before it is persisted, so invalid schedules never
+   reach storage.
+3. Re-registering a definition after a restart reconstructs an equivalent schedule (`NextFireTime`
+   recomputed from the expression).
+
+What Cronex leaves to the host application:
+1. **Where** definitions are stored (file, database, queue — Cronex has no opinion).
+2. **When** to snapshot the current registry and when to reload it (no built-in export/import API).
+3. **Execution history across restarts** — `FireCount` and `LastFired` live on the in-memory
+   `TriggerRegistration` and reset when a definition is re-registered. If a host needs `{max:N}` to survive
+   a restart, it must track fire counts itself and stop re-registering once the limit is reached.

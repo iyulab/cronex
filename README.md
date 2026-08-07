@@ -41,7 +41,9 @@ TZ=Asia/Seoul 0 9 * * MON-FRI {jitter:30s, until:2025-12-31}
 
 When a trigger fires, your handler gets a rich `TriggerContext`. That's it.
 
-**What Cronex is not:** a job framework, a task queue, or a persistence layer. It doesn't tell you how to execute work. It tells you *when*, gives you *context*, and gets out of the way.
+**What Cronex is not:** a job framework, a task queue, or a persistence layer. It doesn't tell you how to execute work. It tells you *when*, gives you *context*, and gets out of the way. See the [persistence boundary](docs/specification.md#74-persistence-boundary) for how to build storage/rehydration on top.
+
+Works well for AI agent runtimes that need to generate, validate, and hand back schedules as plain strings — no code, just data.
 
 ## Install
 

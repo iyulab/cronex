@@ -1,7 +1,7 @@
 # Cronex
 
-[![NuGet](https://img.shields.io/nuget/v/Cronex.svg)](https://www.nuget.org/packages/Cronex)
-[![NuGet Downloads](https://img.shields.io/nuget/dt/Cronex.svg)](https://www.nuget.org/packages/Cronex)
+[![NuGet](https://img.shields.io/nuget/v/Cronex.Net.svg)](https://www.nuget.org/packages/Cronex.Net)
+[![NuGet Downloads](https://img.shields.io/nuget/dt/Cronex.Net.svg)](https://www.nuget.org/packages/Cronex.Net)
 [![CI](https://github.com/iyulab/Cronex/actions/workflows/ci.yml/badge.svg)](https://github.com/iyulab/Cronex/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 

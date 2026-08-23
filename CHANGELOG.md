@@ -6,6 +6,23 @@ Versions are `0.x` and breaking changes may occur in a minor bump. Dependency fl
 part of the public surface: raising one can break a consumer's restore, so a raise is called out
 here even when no code changed.
 
+## 0.4.1
+
+### Fixed
+
+- **`Cronex.Net.Hosting`**: `CronexBackgroundService` registered triggers and started the scheduler
+  inside `ExecuteAsync`, which `BackgroundService.StartAsync` does not guarantee has progressed by
+  the time it returns — `StartAsync` returns `Task.CompletedTask` the instant `ExecuteAsync` hasn't
+  finished, which for a run-until-stopped service is immediately. A caller awaiting
+  `IHostedService.StartAsync` could observe zero registered triggers and a scheduler that had not
+  started yet (reproduced: 0 triggers read immediately after `await StartAsync()`, 1 after an
+  arbitrary extra delay). Registration and `scheduler.Start()` now run inside an overridden
+  `StartAsync`, synchronously before delegating to the base implementation — a caller that awaits
+  `StartAsync` is guaranteed the scheduler is registered and running when it returns. First
+  end-to-end consumer of `Cronex.Net.Hosting` inside this ecosystem (`ironhive-host`) hit this
+  immediately; `Cronex.Tests` previously only asserted DI wiring, never that the hosted service
+  actually ran — closed by `StartAsync_RegistersTriggersAndStartsScheduler_BeforeReturning`.
+
 ## 0.4.0
 
 ### Fixed

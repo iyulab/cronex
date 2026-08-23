@@ -27,10 +27,19 @@ internal sealed class CronexBackgroundService : BackgroundService
         _logger = logger;
     }
 
-    /// <inheritdoc />
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    /// <summary>
+    /// Registers triggers and starts the scheduler synchronously, before delegating to
+    /// <see cref="BackgroundService"/>'s own <c>StartAsync</c> to kick off the run-until-stopped
+    /// loop in <see cref="ExecuteAsync"/>. Doing this here — rather than at the top of
+    /// <see cref="ExecuteAsync"/> — matters: <c>BackgroundService.StartAsync</c> does not guarantee
+    /// <c>ExecuteAsync</c>'s synchronous prefix has run by the time it returns (it returns
+    /// <c>Task.CompletedTask</c> the moment <c>ExecuteAsync</c> hasn't finished, which for an
+    /// infinite-running service is immediately). A caller awaiting <c>StartAsync</c> to know
+    /// "triggers are registered and the scheduler is running" would otherwise race the actual
+    /// registration.
+    /// </summary>
+    public override Task StartAsync(CancellationToken cancellationToken)
     {
-        // Register triggers from descriptors
         foreach (var desc in _descriptors)
         {
             Func<TriggerContext, CancellationToken, Task> handler;
@@ -69,6 +78,12 @@ internal sealed class CronexBackgroundService : BackgroundService
         _logger.LogInformation("Cronex scheduler started with {Count} trigger(s)", _scheduler.GetTriggers().Count);
         _scheduler.Start();
 
+        return base.StartAsync(cancellationToken);
+    }
+
+    /// <inheritdoc />
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    {
         try
         {
             await Task.Delay(Timeout.Infinite, stoppingToken);

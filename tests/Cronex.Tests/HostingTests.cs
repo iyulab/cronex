@@ -1,5 +1,6 @@
 using Cronex.Hosting;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Shouldly;
 using Xunit;
 
@@ -117,6 +118,33 @@ public class HostingTests
         var scheduler = sp.GetRequiredService<CronexScheduler>();
         scheduler.ShouldNotBeNull();
         scheduler.GetTriggers().Count.ShouldBe(0);
+    }
+
+    /// <summary>
+    /// Closes the gap that let a real regression through: every test above only checks DI wiring
+    /// (registrations exist), never that the hosted service actually runs. Registration used to
+    /// happen inside <c>ExecuteAsync</c>, which <c>BackgroundService.StartAsync</c> does not
+    /// guarantee has progressed by the time it returns — a caller awaiting <c>StartAsync</c> could
+    /// observe zero registered triggers. This asserts the trigger is live the instant
+    /// <c>StartAsync</c>'s task completes, with no extra delay.
+    /// </summary>
+    [Fact]
+    public async Task StartAsync_RegistersTriggersAndStartsScheduler_BeforeReturning()
+    {
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddCronex(c => c.AddTrigger<TestHandler>("start-test", "@every 1m"));
+        var sp = services.BuildServiceProvider();
+
+        var hosted = sp.GetServices<IHostedService>().Single();
+        var scheduler = sp.GetRequiredService<CronexScheduler>();
+
+        await hosted.StartAsync(CancellationToken.None);
+
+        scheduler.GetTriggers().Count.ShouldBe(1);
+        scheduler.IsRunning.ShouldBeTrue();
+
+        await hosted.StopAsync(CancellationToken.None);
     }
 }
 

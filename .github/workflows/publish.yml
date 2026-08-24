@@ -57,11 +57,32 @@ jobs:
       if: steps.check_tag.outputs.exists == 'false'
       run: dotnet test Cronex.slnx --no-build --configuration Release --verbosity normal
 
+    # Pack every packable project in the solution, not just the two named today. Naming individual
+    # csproj files here is the same defect class that left FluxImprover.LMSupply and
+    # FileFlux.Providers.LMSupply unpublished at every version until it was noticed (see
+    # iyulab/FluxImprover@4f01b46, iyulab/FileFlux nuget-publish.yml) — a package that is never
+    # produced cannot fail to push, so the gap stays invisible until someone looks for it on
+    # NuGet.org. Packing the solution plus a verification step closes it for any future addition.
     - name: Pack
       if: steps.check_tag.outputs.exists == 'false'
+      run: dotnet pack Cronex.slnx --no-build --configuration Release --output ./nupkg
+
+    - name: Verify all packable projects were produced
+      if: steps.check_tag.outputs.exists == 'false'
       run: |
-        dotnet pack src/Cronex/Cronex.csproj --no-build --configuration Release --output ./nupkg
-        dotnet pack src/Cronex.Hosting/Cronex.Hosting.csproj --no-build --configuration Release --output ./nupkg
+        version="${{ steps.version.outputs.version }}"
+        missing=0
+        # PackageId does not match the csproj filename here (Cronex.csproj -> Cronex.Net), so read
+        # it from the csproj instead of assuming filename match — a wrong assumption here reports a
+        # package as missing when it was in fact produced, and a gate that cries wolf gets ignored.
+        for csproj in $(grep -oP '(?<=Path=")src/[^"]+\.csproj' Cronex.slnx); do
+          id=$(grep -oP '(?<=<PackageId>)[^<]+' "$csproj")
+          if [ ! -f "./nupkg/${id}.${version}.nupkg" ]; then
+            echo "::error::${id}.${version}.nupkg was not produced"
+            missing=1
+          fi
+        done
+        [ "$missing" -eq 0 ]
 
     - name: NuGet login (OIDC → temporary API key)
       if: steps.check_tag.outputs.exists == 'false'

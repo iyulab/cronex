@@ -34,7 +34,7 @@ jobs:
       run: dotnet build Cronex.slnx --no-restore --configuration Release
 
     - name: Test
-      run: dotnet test Cronex.slnx --no-build --configuration Release --verbosity normal
+      run: dotnet test Cronex.slnx --no-build --configuration Release --verbosity normal --blame-hang --blame-hang-timeout 5m
 
     # Timezone/DST handling (spec §3.5) is this library's highest-risk area to run on one platform
     # only — that's what the matrix above is for. The two checks below are build-validation, not

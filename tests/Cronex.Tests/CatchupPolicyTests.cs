@@ -27,7 +27,7 @@ public class CatchupPolicyTests
         // pre-existing "all" behavior exactly (regression guard for the default).
         tp.Advance(TimeSpan.FromMinutes(5));
         for (var i = 0; i < 5; i++)
-            await scheduler.TickAsync();
+            await scheduler.TickAsync(TestContext.Current.CancellationToken);
 
         fireCount.ShouldBe(5);
     }
@@ -49,7 +49,7 @@ public class CatchupPolicyTests
 
         tp.Advance(TimeSpan.FromMinutes(5));
         for (var i = 0; i < 5; i++)
-            await scheduler.TickAsync();
+            await scheduler.TickAsync(TestContext.Current.CancellationToken);
 
         fireCount.ShouldBe(0);
         skipReason.ShouldBe("catchup skip");
@@ -69,11 +69,11 @@ public class CatchupPolicyTests
         });
 
         tp.Advance(TimeSpan.FromMinutes(5)); // backlog of 5
-        await scheduler.TickAsync(); // discards the backlog, jumps NextFireTime to t+6m
+        await scheduler.TickAsync(TestContext.Current.CancellationToken); // discards the backlog, jumps NextFireTime to t+6m
         fireCount.ShouldBe(0);
 
         tp.Advance(TimeSpan.FromMinutes(1)); // now t+6m — the next real occurrence
-        await scheduler.TickAsync();
+        await scheduler.TickAsync(TestContext.Current.CancellationToken);
         fireCount.ShouldBe(1);
     }
 
@@ -95,7 +95,7 @@ public class CatchupPolicyTests
 
         tp.Advance(TimeSpan.FromMinutes(5)); // occurrences at +1m..+5m are all missed
         for (var i = 0; i < 5; i++)
-            await scheduler.TickAsync();
+            await scheduler.TickAsync(TestContext.Current.CancellationToken);
 
         fireCount.ShouldBe(1); // only the latest, not all 5
         lastScheduledTime.ShouldBe(start.AddMinutes(5));
@@ -131,7 +131,7 @@ public class CatchupPolicyTests
         });
 
         tp.Advance(TimeSpan.FromMinutes(1)); // exactly one occurrence due, no backlog
-        await scheduler.TickAsync();
+        await scheduler.TickAsync(TestContext.Current.CancellationToken);
 
         fired.ShouldBeTrue();
     }

@@ -34,7 +34,10 @@ jobs:
       run: dotnet build Cronex.slnx --no-restore --configuration Release
 
     - name: Test
-      run: dotnet test Cronex.slnx --no-build --configuration Release --verbosity normal --blame-hang --blame-hang-timeout 5m
+      # xUnit v3 / Microsoft.Testing.Platform pilot (BD-20260828-07 follow-up, 2026-08-29):
+      # --hangdump/--hangdump-timeout is MTP's equivalent of VSTest's --blame-hang, provided by
+      # the Microsoft.Testing.Extensions.HangDump package referenced in Cronex.Tests.csproj.
+      run: dotnet test Cronex.slnx --no-build --configuration Release --verbosity normal --hangdump --hangdump-timeout 5m
 
     # Timezone/DST handling (spec §3.5) is this library's highest-risk area to run on one platform
     # only — that's what the matrix above is for. The two checks below are build-validation, not

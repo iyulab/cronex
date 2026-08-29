@@ -42,7 +42,7 @@ public class ConcurrencyTests
 
         // Advance and tick — should fire at most once
         tp.Advance(TimeSpan.FromMinutes(1));
-        await scheduler.TickAsync();
+        await scheduler.TickAsync(TestContext.Current.CancellationToken);
 
         fireCount.ShouldBeLessThanOrEqualTo(1);
         await scheduler.StopAsync();
@@ -65,7 +65,7 @@ public class ConcurrencyTests
         });
 
         tp.Advance(TimeSpan.FromMinutes(1));
-        await scheduler.TickAsync();
+        await scheduler.TickAsync(TestContext.Current.CancellationToken);
 
         fired.ShouldBeTrue();
         await scheduler.StopAsync();
@@ -87,7 +87,7 @@ public class ConcurrencyTests
 
         tp.Advance(TimeSpan.FromMinutes(1));
         // Should not throw even though trigger unregisters itself during handler
-        await scheduler.TickAsync();
+        await scheduler.TickAsync(TestContext.Current.CancellationToken);
 
         fireCount.ShouldBe(1);
         scheduler.GetTrigger("self-remove").ShouldBeNull();
@@ -108,13 +108,13 @@ public class ConcurrencyTests
 
         scheduler.Start();
         tp.Advance(TimeSpan.FromMinutes(1));
-        await scheduler.TickAsync();
+        await scheduler.TickAsync(TestContext.Current.CancellationToken);
         await scheduler.StopAsync();
 
         // Restart
         scheduler.Start();
         tp.Advance(TimeSpan.FromMinutes(1));
-        await scheduler.TickAsync();
+        await scheduler.TickAsync(TestContext.Current.CancellationToken);
         await scheduler.StopAsync();
 
         fireCount.ShouldBe(2);
@@ -153,7 +153,7 @@ public class ConcurrencyTests
 
         tp.Advance(TimeSpan.FromMinutes(1));
         // Should not throw
-        await scheduler.TickAsync();
+        await scheduler.TickAsync(TestContext.Current.CancellationToken);
 
         // Trigger should still be scheduled for next occurrence
         var trigger = scheduler.GetTrigger("test");

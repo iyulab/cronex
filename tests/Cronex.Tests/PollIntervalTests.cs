@@ -103,7 +103,7 @@ public class PollIntervalTests
         for (var i = 0; i < 500 && fireTimes.Count < 100; i++)
         {
             tp.Advance(scheduler.ComputeNextPollDelay());
-            await scheduler.TickAsync();
+            await scheduler.TickAsync(TestContext.Current.CancellationToken);
         }
 
         fireTimes.Count.ShouldBe(100);
@@ -130,7 +130,7 @@ public class PollIntervalTests
         for (var i = 0; i < 5; i++)
         {
             tp.Advance(scheduler.ComputeNextPollDelay());
-            await scheduler.TickAsync();
+            await scheduler.TickAsync(TestContext.Current.CancellationToken);
         }
 
         fired.ShouldBeTrue();

@@ -25,7 +25,7 @@ public class UpdateTests
         for (var i = 0; i < 7; i++)
         {
             tp.Advance(TimeSpan.FromMinutes(1));
-            await scheduler.TickAsync();
+            await scheduler.TickAsync(TestContext.Current.CancellationToken);
         }
         count.ShouldBe(7);
 
@@ -36,7 +36,7 @@ public class UpdateTests
         for (var i = 0; i < 10; i++)
         {
             tp.Advance(TimeSpan.FromMinutes(1));
-            await scheduler.TickAsync();
+            await scheduler.TickAsync(TestContext.Current.CancellationToken);
         }
 
         count.ShouldBe(10); // 7 already fired + only 3 more allowed under the shared max
@@ -51,7 +51,7 @@ public class UpdateTests
 
         scheduler.Register("test", "* * * * *", (ctx, ct) => Task.CompletedTask);
         tp.Advance(TimeSpan.FromMinutes(1));
-        await scheduler.TickAsync();
+        await scheduler.TickAsync(TestContext.Current.CancellationToken);
 
         var lastFiredBeforeUpdate = scheduler.GetTrigger("test")!.LastFired;
         lastFiredBeforeUpdate.ShouldNotBeNull();
@@ -98,7 +98,7 @@ public class UpdateTests
         });
 
         tp.Advance(TimeSpan.FromMinutes(1));
-        await scheduler.TickAsync();
+        await scheduler.TickAsync(TestContext.Current.CancellationToken);
 
         oldHandlerCalled.ShouldBeFalse();
         newHandlerCalled.ShouldBeTrue();
@@ -120,7 +120,7 @@ public class UpdateTests
         scheduler.Update("test", "* * * * *"); // schedule-only change
 
         tp.Advance(TimeSpan.FromMinutes(1));
-        await scheduler.TickAsync();
+        await scheduler.TickAsync(TestContext.Current.CancellationToken);
 
         handlerCalled.ShouldBeTrue();
     }

@@ -29,7 +29,7 @@ public class EngineReliabilityTests
         tp.Advance(TimeSpan.FromMinutes(1));
 
         // Should not throw even though a TriggerFiring subscriber does.
-        await scheduler.TickAsync();
+        await scheduler.TickAsync(TestContext.Current.CancellationToken);
 
         otherFired.ShouldBeTrue();
     }
@@ -51,7 +51,7 @@ public class EngineReliabilityTests
 
         tp.Advance(TimeSpan.FromMinutes(5));
 
-        await scheduler.TickAsync();
+        await scheduler.TickAsync(TestContext.Current.CancellationToken);
 
         fired.ShouldBeFalse();
     }
@@ -70,7 +70,7 @@ public class EngineReliabilityTests
         scheduler.Register("test", "* * * * *", (ctx, ct) => Task.CompletedTask);
 
         tp.Advance(TimeSpan.FromMinutes(1));
-        await scheduler.TickAsync();
+        await scheduler.TickAsync(TestContext.Current.CancellationToken);
 
         failedFired.ShouldBeFalse();
     }
@@ -90,7 +90,7 @@ public class EngineReliabilityTests
             throw new InvalidOperationException("handler failed"));
 
         tp.Advance(TimeSpan.FromMinutes(1));
-        await scheduler.TickAsync();
+        await scheduler.TickAsync(TestContext.Current.CancellationToken);
 
         completedFired.ShouldBeFalse();
         capturedEx.ShouldNotBeNull();
@@ -140,7 +140,7 @@ public class EngineReliabilityTests
         // poll (once per second) forever.
         tp.Advance(TimeSpan.FromMinutes(5));
         for (var i = 0; i < 20; i++)
-            await scheduler.TickAsync();
+            await scheduler.TickAsync(TestContext.Current.CancellationToken);
 
         skipCount.ShouldBe(1);
     }
@@ -160,11 +160,11 @@ public class EngineReliabilityTests
         scheduler.SetEnabled("test", false);
 
         tp.Advance(TimeSpan.FromMinutes(3));
-        await scheduler.TickAsync();
+        await scheduler.TickAsync(TestContext.Current.CancellationToken);
 
         scheduler.SetEnabled("test", true);
         tp.Advance(TimeSpan.FromMinutes(1));
-        await scheduler.TickAsync();
+        await scheduler.TickAsync(TestContext.Current.CancellationToken);
 
         fired.ShouldBeTrue();
     }

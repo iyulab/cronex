@@ -37,12 +37,12 @@ public class StaggerHashTests
         // Nominal fire time is start + 1 minute. One millisecond before the golden offset elapses,
         // it must not have fired yet.
         tp.Advance(TimeSpan.FromMinutes(1) + TimeSpan.FromMilliseconds(expectedOffsetMs - 1));
-        await scheduler.TickAsync();
+        await scheduler.TickAsync(TestContext.Current.CancellationToken);
         fired.ShouldBeFalse();
 
         // At (and past) the golden offset, it must fire.
         tp.Advance(TimeSpan.FromMilliseconds(1));
-        await scheduler.TickAsync();
+        await scheduler.TickAsync(TestContext.Current.CancellationToken);
         fired.ShouldBeTrue();
     }
 
@@ -71,15 +71,15 @@ public class StaggerHashTests
         // from there — then advance in 1ms steps to find the exact instant each fires (up to +45s).
         tp1.Advance(TimeSpan.FromSeconds(59));
         tp2.Advance(TimeSpan.FromSeconds(59));
-        await s1.TickAsync();
-        await s2.TickAsync();
+        await s1.TickAsync(TestContext.Current.CancellationToken);
+        await s2.TickAsync(TestContext.Current.CancellationToken);
 
         for (var i = 0; i < 46_000; i++)
         {
             tp1.Advance(TimeSpan.FromMilliseconds(1));
             tp2.Advance(TimeSpan.FromMilliseconds(1));
-            await s1.TickAsync();
-            await s2.TickAsync();
+            await s1.TickAsync(TestContext.Current.CancellationToken);
+            await s2.TickAsync(TestContext.Current.CancellationToken);
             if (fired1 != null && fired2 != null) break;
         }
 

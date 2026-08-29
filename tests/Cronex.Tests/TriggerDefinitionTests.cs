@@ -110,7 +110,7 @@ public class TriggerDefinitionTests
         });
 
         tp.Advance(TimeSpan.FromMinutes(1));
-        await scheduler.TickAsync();
+        await scheduler.TickAsync(TestContext.Current.CancellationToken);
 
         capturedMetadata.ShouldNotBeNull();
         capturedMetadata!["key"].ShouldBe("value");
@@ -137,7 +137,7 @@ public class TriggerDefinitionTests
         });
 
         tp.Advance(TimeSpan.FromMinutes(1));
-        await scheduler.TickAsync();
+        await scheduler.TickAsync(TestContext.Current.CancellationToken);
 
         fired.ShouldBeFalse();
     }

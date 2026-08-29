@@ -23,7 +23,7 @@ public class JitterTests
 
         // Advance well past the jitter window
         tp.Advance(TimeSpan.FromMinutes(1) + TimeSpan.FromSeconds(10));
-        await scheduler.TickAsync();
+        await scheduler.TickAsync(TestContext.Current.CancellationToken);
 
         fired.ShouldBeTrue();
     }
@@ -46,7 +46,7 @@ public class JitterTests
 
         // Advance well past next minute + jitter
         tp.Advance(TimeSpan.FromMinutes(1) + TimeSpan.FromSeconds(30));
-        await scheduler.TickAsync();
+        await scheduler.TickAsync(TestContext.Current.CancellationToken);
 
         actualTime.ShouldNotBeNull();
         scheduledTime.ShouldNotBeNull();
@@ -69,7 +69,7 @@ public class JitterTests
 
         // Advance way past — both jitter and window should be exceeded
         tp.Advance(TimeSpan.FromMinutes(5));
-        await scheduler.TickAsync();
+        await scheduler.TickAsync(TestContext.Current.CancellationToken);
 
         // May or may not skip depending on random jitter value, but the mechanism should work
         // The important thing is it doesn't crash
@@ -90,7 +90,7 @@ public class JitterTests
         });
 
         tp.Advance(TimeSpan.FromMinutes(1));
-        await scheduler.TickAsync();
+        await scheduler.TickAsync(TestContext.Current.CancellationToken);
 
         fired.ShouldBeTrue();
     }
@@ -116,7 +116,7 @@ public class JitterTests
         for (var i = 0; i < 5; i++)
         {
             tp.Advance(TimeSpan.FromSeconds(5));
-            await scheduler.TickAsync();
+            await scheduler.TickAsync(TestContext.Current.CancellationToken);
             trigger.JitterOffset.ShouldBe(firstDraw);
         }
     }
@@ -145,7 +145,7 @@ public class JitterTests
         tp.Advance(TimeSpan.FromMinutes(1));
         for (var ms = 0; ms <= 30_000; ms += 100)
         {
-            await scheduler.TickAsync();
+            await scheduler.TickAsync(TestContext.Current.CancellationToken);
             tp.Advance(TimeSpan.FromMilliseconds(100));
         }
 

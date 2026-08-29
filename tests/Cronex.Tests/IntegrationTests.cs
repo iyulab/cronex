@@ -37,7 +37,7 @@ public class IntegrationTests
         });
 
         tp.Advance(TimeSpan.FromMinutes(5));
-        await scheduler.TickAsync();
+        await scheduler.TickAsync(TestContext.Current.CancellationToken);
 
         capturedEnv.ShouldBe("prod");
         capturedEndpoint.ShouldBe("https://api.example.com");
@@ -86,7 +86,7 @@ public class IntegrationTests
         });
 
         tp.Advance(TimeSpan.FromMinutes(1));
-        await scheduler.TickAsync();
+        await scheduler.TickAsync(TestContext.Current.CancellationToken);
 
         fired.ShouldBeFalse();
     }
@@ -115,7 +115,7 @@ public class IntegrationTests
         });
 
         tp.Advance(TimeSpan.FromMinutes(1));
-        await scheduler.TickAsync();
+        await scheduler.TickAsync(TestContext.Current.CancellationToken);
 
         captured.ShouldNotBeNull();
         captured!.TriggerId.ShouldBe("ctx-test");
@@ -144,12 +144,12 @@ public class IntegrationTests
 
         scheduler.SetEnabled("toggle", false);
         tp.Advance(TimeSpan.FromMinutes(1));
-        await scheduler.TickAsync();
+        await scheduler.TickAsync(TestContext.Current.CancellationToken);
         count.ShouldBe(0);
 
         scheduler.SetEnabled("toggle", true);
         tp.Advance(TimeSpan.FromMinutes(1));
-        await scheduler.TickAsync();
+        await scheduler.TickAsync(TestContext.Current.CancellationToken);
         count.ShouldBe(1);
     }
 
@@ -175,13 +175,13 @@ public class IntegrationTests
 
         // After 1 minute: a fires, b doesn't
         tp.Advance(TimeSpan.FromMinutes(1));
-        await scheduler.TickAsync();
+        await scheduler.TickAsync(TestContext.Current.CancellationToken);
         countA.ShouldBe(1);
         countB.ShouldBe(0);
 
         // After 5 minutes total: both fire
         tp.Advance(TimeSpan.FromMinutes(4));
-        await scheduler.TickAsync();
+        await scheduler.TickAsync(TestContext.Current.CancellationToken);
         countA.ShouldBe(2);
         countB.ShouldBe(1);
     }
@@ -214,11 +214,11 @@ public class IntegrationTests
         });
 
         tp.Advance(TimeSpan.FromMinutes(10));
-        await scheduler.TickAsync();
+        await scheduler.TickAsync(TestContext.Current.CancellationToken);
         count.ShouldBe(1);
 
         tp.Advance(TimeSpan.FromMinutes(10));
-        await scheduler.TickAsync();
+        await scheduler.TickAsync(TestContext.Current.CancellationToken);
         count.ShouldBe(1); // Should not fire again
     }
 
@@ -285,7 +285,7 @@ public class IntegrationTests
         scheduler.SetEnabled("disabled-test", false);
 
         tp.Advance(TimeSpan.FromMinutes(1));
-        await scheduler.TickAsync();
+        await scheduler.TickAsync(TestContext.Current.CancellationToken);
 
         skippedId.ShouldBe("disabled-test");
         skippedReason.ShouldBe("disabled");
@@ -309,14 +309,14 @@ public class IntegrationTests
 
         // At 30m: cron fires, interval fires, once fires, alias doesn't
         tp.Advance(TimeSpan.FromMinutes(30));
-        await scheduler.TickAsync();
+        await scheduler.TickAsync(TestContext.Current.CancellationToken);
         cronCount.ShouldBeGreaterThanOrEqualTo(1);
         intervalCount.ShouldBe(1);
         onceCount.ShouldBe(1);
 
         // At 1h: alias fires
         tp.Advance(TimeSpan.FromMinutes(30));
-        await scheduler.TickAsync();
+        await scheduler.TickAsync(TestContext.Current.CancellationToken);
         aliasCount.ShouldBeGreaterThanOrEqualTo(1);
     }
 
@@ -338,7 +338,7 @@ public class IntegrationTests
         });
 
         tp.Advance(TimeSpan.FromMinutes(1));
-        await scheduler.TickAsync();
+        await scheduler.TickAsync(TestContext.Current.CancellationToken);
 
         goodCount.ShouldBe(1); // Good trigger still fires despite bad one failing
     }

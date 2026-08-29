@@ -25,7 +25,7 @@ public class CronexSchedulerTests
 
         // Advance past next minute
         tp.Advance(TimeSpan.FromMinutes(1));
-        await scheduler.TickAsync();
+        await scheduler.TickAsync(TestContext.Current.CancellationToken);
 
         fired.ShouldBeTrue();
     }
@@ -44,7 +44,7 @@ public class CronexSchedulerTests
         });
 
         tp.Advance(TimeSpan.FromMinutes(30));
-        await scheduler.TickAsync();
+        await scheduler.TickAsync(TestContext.Current.CancellationToken);
 
         fired.ShouldBeFalse();
     }
@@ -65,7 +65,7 @@ public class CronexSchedulerTests
         scheduler.Unregister("test").ShouldBeTrue();
 
         tp.Advance(TimeSpan.FromMinutes(1));
-        await scheduler.TickAsync();
+        await scheduler.TickAsync(TestContext.Current.CancellationToken);
 
         fired.ShouldBeFalse();
     }
@@ -85,7 +85,7 @@ public class CronexSchedulerTests
 
         scheduler.SetEnabled("test", false);
         tp.Advance(TimeSpan.FromMinutes(1));
-        await scheduler.TickAsync();
+        await scheduler.TickAsync(TestContext.Current.CancellationToken);
 
         fired.ShouldBeFalse();
     }
@@ -106,7 +106,7 @@ public class CronexSchedulerTests
         for (var i = 0; i < 5; i++)
         {
             tp.Advance(TimeSpan.FromMinutes(1));
-            await scheduler.TickAsync();
+            await scheduler.TickAsync(TestContext.Current.CancellationToken);
         }
 
         count.ShouldBe(2);
@@ -126,7 +126,7 @@ public class CronexSchedulerTests
         scheduler.Register("test", "* * * * *", (ctx, ct) => Task.CompletedTask);
 
         tp.Advance(TimeSpan.FromMinutes(1));
-        await scheduler.TickAsync();
+        await scheduler.TickAsync(TestContext.Current.CancellationToken);
 
         firingCtx.ShouldNotBeNull();
         firingCtx!.TriggerId.ShouldBe("test");
@@ -146,7 +146,7 @@ public class CronexSchedulerTests
             throw new InvalidOperationException("test error"));
 
         tp.Advance(TimeSpan.FromMinutes(1));
-        await scheduler.TickAsync();
+        await scheduler.TickAsync(TestContext.Current.CancellationToken);
 
         capturedEx.ShouldNotBeNull();
         capturedEx!.Message.ShouldBe("test error");
@@ -161,9 +161,9 @@ public class CronexSchedulerTests
         scheduler.Register("test", "* * * * *", (ctx, ct) => Task.CompletedTask);
 
         tp.Advance(TimeSpan.FromMinutes(1));
-        await scheduler.TickAsync();
+        await scheduler.TickAsync(TestContext.Current.CancellationToken);
         tp.Advance(TimeSpan.FromMinutes(1));
-        await scheduler.TickAsync();
+        await scheduler.TickAsync(TestContext.Current.CancellationToken);
 
         var trigger = scheduler.GetTrigger("test");
         trigger.ShouldNotBeNull();
@@ -184,11 +184,11 @@ public class CronexSchedulerTests
         });
 
         tp.Advance(TimeSpan.FromMinutes(5));
-        await scheduler.TickAsync();
+        await scheduler.TickAsync(TestContext.Current.CancellationToken);
         count.ShouldBe(1);
 
         tp.Advance(TimeSpan.FromMinutes(5));
-        await scheduler.TickAsync();
+        await scheduler.TickAsync(TestContext.Current.CancellationToken);
         count.ShouldBe(2);
     }
 
@@ -207,11 +207,11 @@ public class CronexSchedulerTests
         }, start);
 
         tp.Advance(TimeSpan.FromMinutes(5));
-        await scheduler.TickAsync();
+        await scheduler.TickAsync(TestContext.Current.CancellationToken);
         count.ShouldBe(1);
 
         tp.Advance(TimeSpan.FromMinutes(5));
-        await scheduler.TickAsync();
+        await scheduler.TickAsync(TestContext.Current.CancellationToken);
         count.ShouldBe(1); // Should not fire again
     }
 
@@ -253,7 +253,7 @@ public class CronexSchedulerTests
 
         // Skip way past the window
         tp.Advance(TimeSpan.FromMinutes(5));
-        await scheduler.TickAsync();
+        await scheduler.TickAsync(TestContext.Current.CancellationToken);
 
         skippedReason.ShouldBe("window exceeded");
         fired.ShouldBeFalse();
@@ -274,7 +274,7 @@ public class CronexSchedulerTests
 
         // Advance just past next minute (within 2m window)
         tp.Advance(TimeSpan.FromSeconds(65));
-        await scheduler.TickAsync();
+        await scheduler.TickAsync(TestContext.Current.CancellationToken);
 
         fired.ShouldBeTrue();
     }
@@ -294,7 +294,7 @@ public class CronexSchedulerTests
 
         // Advance exactly to the next minute (without stagger offset, would fire)
         tp.Advance(TimeSpan.FromMinutes(1));
-        await scheduler.TickAsync();
+        await scheduler.TickAsync(TestContext.Current.CancellationToken);
 
         // Stagger adds an offset based on hash of "my-trigger" % 30s
         // Whether it fires depends on the hash value — verify behavior is consistent
@@ -302,7 +302,7 @@ public class CronexSchedulerTests
         trigger.ShouldNotBeNull();
         // After advancing past stagger window, should eventually fire
         tp.Advance(TimeSpan.FromSeconds(30));
-        await scheduler.TickAsync();
+        await scheduler.TickAsync(TestContext.Current.CancellationToken);
         fireCount.ShouldBeGreaterThanOrEqualTo(1);
     }
 
@@ -330,8 +330,8 @@ public class CronexSchedulerTests
         // Advance past stagger
         tp1.Advance(TimeSpan.FromMinutes(2));
         tp2.Advance(TimeSpan.FromMinutes(2));
-        await s1.TickAsync();
-        await s2.TickAsync();
+        await s1.TickAsync(TestContext.Current.CancellationToken);
+        await s2.TickAsync(TestContext.Current.CancellationToken);
 
         // Same ID → same stagger offset → same behavior
         count1.ShouldBe(count2);

@@ -194,6 +194,16 @@ public sealed class CronexScheduler : IAsyncDisposable
     /// <summary>
     /// Starts the scheduler tick loop.
     /// </summary>
+    /// <remarks>
+    /// Per <c>docs/specification.md</c> §3.6, an <c>@every</c> trigger's first occurrence is
+    /// scheduler-start time + duration, not registration time — a trigger registered well before
+    /// <see cref="Start"/> is called (the common "register everything, then start" pattern) must
+    /// not fire early or immediately just because it sat registered for a while. Every
+    /// already-registered interval-kind trigger's <see cref="TriggerRegistration.NextFireTime"/>
+    /// is therefore recomputed from this call's time. A trigger registered later, while the loop is
+    /// already running, keeps <c>Register</c>'s registration-time basis — there is no
+    /// "scheduler start" left to re-anchor to for it.
+    /// </remarks>
     public void Start()
     {
         // Issue 1: Use Volatile.Read for thread-safe disposed check
@@ -203,6 +213,13 @@ public sealed class CronexScheduler : IAsyncDisposable
         // C-2: Atomic guard — only one tick loop can be created
         if (Interlocked.CompareExchange(ref _started, 1, 0) != 0)
             return;
+
+        var now = _timeProvider.GetUtcNow();
+        foreach (var reg in _triggers.Values)
+        {
+            if (reg.Expression.Kind == ScheduleKind.Interval)
+                reg.NextFireTime = reg.Expression.GetNextOccurrence(now);
+        }
 
         _cts = new CancellationTokenSource();
         _tickLoop = TickLoopAsync(_cts.Token);

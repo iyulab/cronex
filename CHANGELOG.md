@@ -6,6 +6,26 @@ Versions are `0.x` and breaking changes may occur in a minor bump. Dependency fl
 part of the public surface: raising one can break a consumer's restore, so a raise is called out
 here even when no code changed.
 
+## 0.5.0
+
+### Changed — `@every` first occurrence now measured from `Start()`, not `Register()` (behavior)
+
+`docs/specification.md` §3.6 has always documented an `@every` trigger's first occurrence as
+"scheduler start time + duration", but `Register()` computed it from the registration call itself.
+In the common pattern of registering every trigger up front and calling `Start()` once at the end,
+a large gap between the two caused `@every` triggers to fire much earlier than expected — sometimes
+immediately. `Start()` now recomputes `NextFireTime` for every already-registered interval-kind
+trigger from its own call time, matching the spec. A trigger `Register`ed after the loop is already
+running is unaffected — there is no scheduler start left to re-anchor to, so it keeps firing
+`duration` after its own registration, as before.
+
+### Added — Multi-Instance Deployment guide
+
+`README.md` documents two patterns for running Cronex across replicas without duplicate firing:
+gating `Start()` behind a distributed lock, or coordinating leadership inside the handler via
+trigger metadata. Cronex itself still has no distributed lock or leader election — this is
+guidance, not new API surface.
+
 ## 0.4.1
 
 ### Fixed

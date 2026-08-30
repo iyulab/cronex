@@ -336,6 +336,74 @@ public class CronexSchedulerTests
         // Same ID → same stagger offset → same behavior
         count1.ShouldBe(count2);
     }
+
+    [Fact]
+    public async Task Start_RecomputesEveryTriggerFirstFire_FromStartTime_NotRegistrationTime()
+    {
+        // spec §3.6: "@every"'s first occurrence is at scheduler start time + duration, not
+        // registration time — a common pattern registers every trigger, then starts once.
+        var tp = CreateTimeProvider(new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero));
+        await using var scheduler = new CronexScheduler(tp);
+
+        scheduler.Register("every-5m", "@every 5m", (ctx, ct) => Task.CompletedTask);
+
+        // A long gap between Register() and Start() — the registration-time-based bug would leave
+        // NextFireTime already in the past (or due immediately) by the time Start() runs.
+        tp.Advance(TimeSpan.FromHours(1));
+        scheduler.Start();
+        try
+        {
+            scheduler.GetTrigger("every-5m")!.NextFireTime.ShouldBe(tp.GetUtcNow() + TimeSpan.FromMinutes(5));
+        }
+        finally
+        {
+            await scheduler.StopAsync();
+        }
+    }
+
+    [Fact]
+    public async Task Start_DoesNotRecompute_NonIntervalTriggers()
+    {
+        // Cron/alias/once triggers are calendar-anchored, not duration-from-start — Start() must
+        // not touch their NextFireTime.
+        var tp = CreateTimeProvider(new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero));
+        await using var scheduler = new CronexScheduler(tp);
+
+        var reg = scheduler.Register("daily", "0 9 * * *", (ctx, ct) => Task.CompletedTask);
+        var beforeStart = reg.NextFireTime;
+
+        tp.Advance(TimeSpan.FromHours(1));
+        scheduler.Start();
+        try
+        {
+            scheduler.GetTrigger("daily")!.NextFireTime.ShouldBe(beforeStart);
+        }
+        finally
+        {
+            await scheduler.StopAsync();
+        }
+    }
+
+    [Fact]
+    public async Task Register_WhileRunning_StillUsesRegistrationTime_NotStartTime()
+    {
+        // A trigger added after Start() has no "scheduler start" to re-anchor to — Register()'s
+        // existing registration-time basis is unaffected by this change.
+        var tp = CreateTimeProvider(new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero));
+        await using var scheduler = new CronexScheduler(tp);
+        scheduler.Start();
+        try
+        {
+            tp.Advance(TimeSpan.FromHours(1));
+            var reg = scheduler.Register("every-5m-late", "@every 5m", (ctx, ct) => Task.CompletedTask);
+
+            reg.NextFireTime.ShouldBe(tp.GetUtcNow() + TimeSpan.FromMinutes(5));
+        }
+        finally
+        {
+            await scheduler.StopAsync();
+        }
+    }
 }
 
 /// <summary>

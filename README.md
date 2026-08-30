@@ -257,6 +257,53 @@ var json = JsonSerializer.Serialize(definition, TriggerDefinitionJsonContext.Def
 var definition = JsonSerializer.Deserialize(json, TriggerDefinitionJsonContext.Default.TriggerDefinition);
 ```
 
+## Multi-Instance Deployment
+
+Cronex's scheduler is in-process — if you run N replicas of your service and every replica calls
+`Start()`, each one runs its own independent tick loop, and any trigger registered on all N fires N
+times. Cronex has no built-in distributed lock or leader election (that's out of this library's
+scope — see "What Cronex is not" above); `stagger` only spreads *when within a window* replicas
+fire, it does not prevent duplicate firing across replicas.
+
+Two patterns, depending on what your deployment already has:
+
+**1. Leader-only `Start()`** — the simplest option if you already have (or can add) a distributed
+lock (a database advisory lock, a Redis `SET NX`, a Kubernetes lease, etc.). Only the instance
+holding the lock calls `Start()`; the others still construct the scheduler and `Register` their
+triggers (so registration/validation happens the same way everywhere), they just never tick.
+
+```csharp
+await using var scheduler = new CronexScheduler();
+scheduler.Register("nightly-report", "0 2 * * *", GenerateReportAsync);
+
+if (await leaderLock.TryAcquireAsync())
+    scheduler.Start(); // only the leader instance ticks
+```
+
+If leadership can change at runtime, call `StopAsync()` / `Start()` as the lock is lost/reacquired.
+`CronexScheduler.IsRunning` and `SchedulerFaulted` are what you'd check to confirm the switch
+actually took effect.
+
+**2. Coordinate via metadata instead of gating `Start()`** — if you don't have a distributed lock
+but do have a way to look up "am I the leader right now", attach it as trigger metadata (`scope`,
+`scope.session` — see [Metadata Conventions](docs/specification.md#73-metadata-conventions)) and
+check leadership inside the handler instead:
+
+```csharp
+scheduler.Register("nightly-report", "0 2 * * * {tag:leader-only}", async (ctx, ct) =>
+{
+    ctx.Metadata.TryGetValue("scope.session", out var session);
+    if (!await IsCurrentLeaderAsync(session))
+        return; // every replica's tick loop runs; only the leader's handler does the work
+
+    await GenerateReportAsync(ctx, ct);
+});
+```
+
+Every replica's tick loop still runs and evaluates the schedule; only the actual work is skipped on
+non-leader replicas. Useful when acquiring/releasing a lock around `Start()`/`StopAsync()` is more
+disruptive to your deployment than a per-firing leadership check.
+
 ## Generic Host Integration
 
 ```csharp

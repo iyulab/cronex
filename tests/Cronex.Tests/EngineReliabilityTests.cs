@@ -4,9 +4,9 @@ using Xunit;
 namespace Cronex.Tests;
 
 /// <summary>
-/// Regression tests for the scheduler-engine-reliability bundle: event-subscriber exception
-/// isolation, TriggerCompleted/TriggerFailed misattribution, atomic reentrant claim, and
-/// disabled-trigger skip spam.
+/// Regression tests for the scheduler-engine-reliability bundle: non-blocking handler dispatch,
+/// event-subscriber exception isolation, TriggerCompleted/TriggerFailed misattribution, atomic
+/// reentrant claim, and disabled-trigger skip spam.
 /// </summary>
 public class EngineReliabilityTests
 {
@@ -180,5 +180,68 @@ public class EngineReliabilityTests
 
         await scheduler.StopAsync();
         scheduler.IsRunning.ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task SlowHandler_DoesNotDelayOtherTriggersFromFiringOnTime()
+    {
+        // Item (a) — the reliability bundle's last unresolved defect (0.6.0). Before this fix,
+        // TickAsync awaited each trigger's handler in turn: a handler that never completes would
+        // have made this `await scheduler.TickAsync(...)` call itself never return, so the second
+        // Advance()+TickAsync() below would never run and "fast" would never reach FireCount 2 —
+        // this test would hang rather than fail. Under non-blocking dispatch, "slow" not completing
+        // has no bearing on "fast" firing on every tick.
+        var tp = new FakeTimeProvider(new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero));
+        await using var scheduler = new CronexScheduler(tp);
+
+        var slowHandlerStarted = new TaskCompletionSource();
+        var releaseSlowHandler = new TaskCompletionSource();
+        scheduler.Register("slow", "* * * * *", async (ctx, ct) =>
+        {
+            slowHandlerStarted.SetResult();
+            await releaseSlowHandler.Task; // stands in for a still-running 10-minute handler
+        });
+
+        var fastFireCount = 0;
+        scheduler.Register("fast", "* * * * *", (ctx, ct) =>
+        {
+            Interlocked.Increment(ref fastFireCount);
+            return Task.CompletedTask;
+        });
+
+        tp.Advance(TimeSpan.FromMinutes(1));
+        await scheduler.TickAsync(TestContext.Current.CancellationToken);
+
+        await slowHandlerStarted.Task; // sanity: "slow" really did start, not skipped
+        fastFireCount.ShouldBe(1);
+
+        // "slow" is still awaiting release — "fast" must still fire on its next occurrence.
+        tp.Advance(TimeSpan.FromMinutes(1));
+        await scheduler.TickAsync(TestContext.Current.CancellationToken);
+        fastFireCount.ShouldBe(2);
+
+        releaseSlowHandler.SetResult();
+        await scheduler.WaitForIdleAsync(TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
+    public async Task WaitForIdleAsync_WaitsForDispatchedHandlerToSettleAndAdvanceNextFireTime()
+    {
+        var tp = new FakeTimeProvider(new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero));
+        await using var scheduler = new CronexScheduler(tp);
+
+        var completed = false;
+        scheduler.TriggerCompleted += _ => completed = true;
+        scheduler.Register("test", "* * * * *", async (ctx, ct) =>
+        {
+            await Task.Yield(); // a real async handoff, unlike this file's usual Task.CompletedTask handlers
+        });
+
+        tp.Advance(TimeSpan.FromMinutes(1));
+        await scheduler.TickAsync(TestContext.Current.CancellationToken);
+        await scheduler.WaitForIdleAsync(TestContext.Current.CancellationToken);
+
+        completed.ShouldBeTrue();
+        scheduler.GetTrigger("test")!.NextFireTime.ShouldBe(new DateTimeOffset(2026, 1, 1, 0, 2, 0, TimeSpan.Zero));
     }
 }

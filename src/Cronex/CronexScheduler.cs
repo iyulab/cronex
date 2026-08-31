@@ -9,6 +9,7 @@ namespace Cronex;
 public sealed class CronexScheduler : IAsyncDisposable
 {
     private readonly ConcurrentDictionary<string, TriggerRegistration> _triggers = new();
+    private readonly ConcurrentDictionary<Task, byte> _inFlight = new();
     private readonly TimeProvider _timeProvider;
     private CancellationTokenSource? _cts;
     private Task? _tickLoop;
@@ -246,6 +247,11 @@ public sealed class CronexScheduler : IAsyncDisposable
             await cts.CancelAsync();
             if (tickLoop != null)
                 await tickLoop;
+
+            // Let handlers already dispatched by the last tick(s) finish before returning, instead
+            // of abandoning them mid-flight — they observe the same cancellation token, so a
+            // cooperative handler still gets the chance to wind down.
+            await WaitForIdleAsync();
         }
         catch (OperationCanceledException)
         {
@@ -258,9 +264,23 @@ public sealed class CronexScheduler : IAsyncDisposable
     }
 
     /// <summary>
-    /// Manually ticks the scheduler — checks all triggers and fires those that are due.
-    /// Useful for testing with a controlled TimeProvider.
+    /// Manually ticks the scheduler — checks all triggers and dispatches the handlers of those
+    /// that are due. Useful for testing with a controlled TimeProvider.
     /// </summary>
+    /// <remarks>
+    /// Since 0.6.0, <see cref="TickAsync"/> does not wait for dispatched handlers to complete
+    /// before returning — a slow handler on one trigger no longer delays another trigger's
+    /// on-time firing, nor the automatic tick loop's next poll (the defect this replaces:
+    /// <c>scheduler-engine-reliability</c> item (a)). <c>FireCount</c>/<c>LastFired</c> are updated
+    /// synchronously before dispatch, so they reflect the tick immediately; <c>TriggerCompleted</c>/
+    /// <c>TriggerFailed</c> and the trigger's next <see cref="TriggerRegistration.NextFireTime"/>
+    /// only settle once the dispatched handler finishes. A caller that needs to observe
+    /// post-handler state deterministically (tests, in particular) should <c>await</c>
+    /// <see cref="WaitForIdleAsync"/> after this call. A given trigger cannot fire again — even
+    /// concurrently with itself — until its previous dispatch completes: claiming an occurrence
+    /// clears <see cref="TriggerRegistration.NextFireTime"/>, and only the dispatched handler's
+    /// completion advances it to the next one.
+    /// </remarks>
     public async Task TickAsync(CancellationToken ct = default)
     {
         var now = _timeProvider.GetUtcNow();
@@ -372,45 +392,95 @@ public sealed class CronexScheduler : IAsyncDisposable
 
             SafeInvoke(() => TriggerFiring?.Invoke(context), nameof(TriggerFiring));
 
-            Exception? handlerException = null;
-            try
-            {
-                await reg.Handler(context, ct);
-            }
-            catch (OperationCanceledException) when (ct.IsCancellationRequested)
-            {
-                // Issue 2: Restore NextFireTime before propagating cancellation
-                reg.NextFireTime = reg.Expression.GetNextOccurrence(scheduledTime);
-                throw;
-            }
-            catch (Exception ex)
-            {
-                handlerException = ex;
-            }
+            // (a) Dispatch without awaiting — a slow handler on this trigger must not delay the
+            // remaining triggers in this same tick, nor the automatic loop's next poll. The
+            // occurrence is already claimed (NextFireTime cleared above), so this trigger cannot
+            // fire again until ExecuteHandlerAsync advances it below.
+            Dispatch(ExecuteHandlerAsync(reg, context, scheduledTime, ct));
+        }
+    }
 
-            // C-1: TriggerCompleted/TriggerFailed now reflect only the handler's own outcome — a
-            // subscriber throwing from either no longer gets misattributed as a handler failure.
-            if (handlerException == null)
-            {
-                SafeInvoke(() => TriggerCompleted?.Invoke(context), nameof(TriggerCompleted));
-            }
-            else if (TriggerFailed != null)
-            {
-                // C-4: Fallback to Trace when no subscribers
-                SafeInvoke(() => TriggerFailed.Invoke(context, handlerException), nameof(TriggerFailed));
-            }
-            else
-            {
-                System.Diagnostics.Trace.TraceError(
-                    "Cronex trigger '{0}' failed: {1}", reg.Id, handlerException);
-            }
+    /// <summary>Tracks a dispatched handler task so <see cref="WaitForIdleAsync"/> can observe it.</summary>
+    private void Dispatch(Task handlerTask)
+    {
+        _inFlight.TryAdd(handlerTask, 0);
+        // The task is always observed here regardless of outcome — ExecuteHandlerAsync never lets
+        // an exception escape it (see its own try/catch), so this continuation only ever cleans up
+        // bookkeeping, never needs to inspect a fault.
+        _ = handlerTask.ContinueWith(
+            static (t, state) => ((ConcurrentDictionary<Task, byte>)state!).TryRemove(t, out _),
+            _inFlight,
+            CancellationToken.None,
+            TaskContinuationOptions.ExecuteSynchronously,
+            TaskScheduler.Default);
+    }
 
-            // Calculate next fire time
+    /// <summary>
+    /// Runs a single trigger's handler to completion, then reports the outcome and advances the
+    /// trigger's schedule. Dispatched fire-and-forget by <see cref="TickAsync"/> — nothing awaits
+    /// this method inline, so it must not let any exception (including cancellation) escape it.
+    /// </summary>
+    private async Task ExecuteHandlerAsync(TriggerRegistration reg, TriggerContext context,
+        DateTimeOffset scheduledTime, CancellationToken ct)
+    {
+        Exception? handlerException = null;
+        try
+        {
+            await reg.Handler(context, ct);
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            // Issue 2: Restore NextFireTime so the trigger isn't lost — nobody awaits this task
+            // inline any more (0.6.0), so there is no caller to rethrow to; TickLoopAsync detects
+            // shutdown independently via its own delay observing the same token.
             reg.NextFireTime = reg.Expression.GetNextOccurrence(scheduledTime);
+            return;
+        }
+        catch (Exception ex)
+        {
+            handlerException = ex;
+        }
 
-            // Check if max reached after firing
-            if (reg.Expression.Options.Max.HasValue && reg.FireCount >= reg.Expression.Options.Max.Value)
-                reg.NextFireTime = null;
+        // C-1: TriggerCompleted/TriggerFailed now reflect only the handler's own outcome — a
+        // subscriber throwing from either no longer gets misattributed as a handler failure.
+        if (handlerException == null)
+        {
+            SafeInvoke(() => TriggerCompleted?.Invoke(context), nameof(TriggerCompleted));
+        }
+        else if (TriggerFailed != null)
+        {
+            // C-4: Fallback to Trace when no subscribers
+            SafeInvoke(() => TriggerFailed.Invoke(context, handlerException), nameof(TriggerFailed));
+        }
+        else
+        {
+            System.Diagnostics.Trace.TraceError(
+                "Cronex trigger '{0}' failed: {1}", reg.Id, handlerException);
+        }
+
+        // Calculate next fire time
+        reg.NextFireTime = reg.Expression.GetNextOccurrence(scheduledTime);
+
+        // Check if max reached after firing
+        if (reg.Expression.Options.Max.HasValue && reg.FireCount >= reg.Expression.Options.Max.Value)
+            reg.NextFireTime = null;
+    }
+
+    /// <summary>
+    /// Waits for every currently in-flight dispatched handler (see <see cref="TickAsync"/>'s 0.6.0
+    /// dispatch-without-waiting remarks) to finish. Re-checks after waiting, since a handler
+    /// completing can itself be racing a new tick that dispatches another — callers that need a
+    /// true idle point (most tests) should call this after their last <see cref="TickAsync"/>.
+    /// </summary>
+    public async Task WaitForIdleAsync(CancellationToken ct = default)
+    {
+        while (true)
+        {
+            var snapshot = _inFlight.Keys.ToArray();
+            if (snapshot.Length == 0)
+                return;
+
+            await Task.WhenAll(snapshot).WaitAsync(ct).ConfigureAwait(false);
         }
     }
 

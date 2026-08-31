@@ -162,8 +162,14 @@ public class ConcurrencyTests
     }
 
     [Fact]
-    public async Task CancellationDuringHandler_PropagatesOCE()
+    public async Task CancellationDuringHandler_DoesNotPropagateToTickAsync_ButRestoresNextFireTime()
     {
+        // 0.6.0: TickAsync dispatches the handler without awaiting it (scheduler-engine-reliability
+        // item (a)), so by the time the handler observes cancellation, TickAsync's caller has
+        // already moved on — there is no one left to rethrow to. The old C-4 contract ("cancellation
+        // propagates out of TickAsync") is no longer possible under a non-blocking dispatch model;
+        // what still holds is that the occurrence isn't lost — NextFireTime advances once the
+        // dispatch settles, observable via WaitForIdleAsync.
         var tp = new FakeTimeProvider(new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero));
         await using var scheduler = new CronexScheduler(tp);
 
@@ -176,8 +182,13 @@ public class ConcurrencyTests
 
         tp.Advance(TimeSpan.FromMinutes(1));
 
-        // C-4: OperationCanceledException should propagate
-        await Should.ThrowAsync<OperationCanceledException>(
-            () => scheduler.TickAsync(cts.Token));
+        // Should not throw — the cancellation happens inside the dispatched handler, not inline.
+        await scheduler.TickAsync(cts.Token);
+        await scheduler.WaitForIdleAsync(TestContext.Current.CancellationToken);
+
+        var trigger = scheduler.GetTrigger("test");
+        trigger.ShouldNotBeNull();
+        trigger!.NextFireTime.ShouldNotBeNull();
+        trigger.NextFireTime.ShouldBe(new DateTimeOffset(2026, 1, 1, 0, 2, 0, TimeSpan.Zero));
     }
 }

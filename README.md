@@ -187,6 +187,11 @@ scheduler.IsRunning;                  // true while Start() has an active tick l
 // count across the reload.
 scheduler.Update("sync", "@every 30m");                              // schedule only, keep handler
 scheduler.Update("sync", "@every 30m", async (ctx, ct) => { ... });   // schedule + handler
+
+// Handlers dispatched by TickAsync run without blocking the tick — await this when you need to
+// know they've all settled (e.g. right before asserting FireCount/TriggerCompleted in a test, or
+// during a graceful shutdown alongside StopAsync, which already calls this internally).
+await scheduler.WaitForIdleAsync();
 ```
 
 ## TriggerContext
@@ -374,6 +379,8 @@ See the [specification §3.5](docs/specification.md#35-dst-handling-rules) for f
 **Testable.** The scheduler accepts `TimeProvider` for deterministic testing.
 
 **Observable.** Every state transition (firing, completed, failed, skipped) is an event. Build history, monitoring, and alerting on top.
+
+**Non-blocking.** `TickAsync` dispatches due handlers without awaiting them — a slow handler on one trigger never delays another trigger's on-time firing, or the tick loop's next poll. Call `WaitForIdleAsync()` when you need to observe post-handler state deterministically (tests, graceful shutdown).
 
 **Minimal.** Core has zero dependencies. No database. No queue. No opinions.
 

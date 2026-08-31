@@ -6,6 +6,30 @@ Versions are `0.x` and breaking changes may occur in a minor bump. Dependency fl
 part of the public surface: raising one can break a consumer's restore, so a raise is called out
 here even when no code changed.
 
+## 0.6.0
+
+### Changed — `TickAsync` dispatches handlers without waiting for them (breaking)
+
+`TickAsync` used to `await` each due trigger's handler in turn — a handler that took ten minutes
+held up every other trigger's on-time firing for that same tick, and the automatic loop's next
+poll besides. Nothing declared this serial-and-blocking behavior as an intended concurrency
+policy; it fell out of the loop's original shape. `TickAsync` now dispatches each due handler
+without awaiting it: a trigger's `FireCount`/`LastFired` still update synchronously as part of the
+tick, but `TriggerCompleted`/`TriggerFailed` and the trigger's next `NextFireTime` only settle once
+its dispatched handler finishes. A given trigger still cannot fire concurrently with itself —
+claiming an occurrence clears `NextFireTime`, and only that dispatch's completion advances it.
+
+Added `WaitForIdleAsync()` to observe that settling point deterministically — call it after
+`TickAsync` when you need post-handler state (most existing test code assumed the old blocking
+behavior implicitly and needs this call added). `StopAsync` now calls it internally before
+returning, so a graceful shutdown still gives in-flight handlers the chance to finish.
+
+Cancellation observed inside a handler (via the token passed to `TickAsync`) used to propagate out
+of `TickAsync` itself; under non-blocking dispatch there is no longer a caller waiting on that
+specific handler to rethrow to. The trigger's `NextFireTime` is still restored so the occurrence
+isn't lost — the loop's own shutdown is unaffected, since `TickLoopAsync` observes the same
+cancellation token independently on its own delay.
+
 ## 0.5.0
 
 ### Changed — `@every` first occurrence now measured from `Start()`, not `Register()` (behavior)

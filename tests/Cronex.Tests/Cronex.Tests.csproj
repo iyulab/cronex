@@ -26,6 +26,7 @@
     <!-- MTP equivalent of the ecosystem's VSTest blame-hang convention (BD-20260828-07) -->
     <PackageReference Include="Microsoft.Testing.Extensions.HangDump" Version="2.3.3" />
     <PackageReference Include="Shouldly" Version="4.3.0" />
+    <PackageReference Include="Iyu.Conventions.Testing" Version="0.1.0" />
     <!-- Deliberately the floor declared by Cronex.Net.Hosting, so the test run proves that
          floor actually builds and passes instead of only asserting it in the nuspec. -->
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.0" />

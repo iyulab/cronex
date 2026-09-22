@@ -1,0 +1,4 @@
+# Line endings: LF in every checkout, on every platform — .editorconfig says end_of_line = lf and CI runs
+# dotnet format --verify-no-changes on Linux; a CRLF checkout (git core.autocrlf=true on Windows) made that
+# check red locally on a clean tree (2026-09-22).
+* text=auto eol=lf

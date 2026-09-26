@@ -6,6 +6,11 @@ Versions are `0.x` and breaking changes may occur in a minor bump. Dependency fl
 part of the public surface: raising one can break a consumer's restore, so a raise is called out
 here even when no code changed.
 
+## 0.6.1
+
+### Fixed
+- **A service provider disposed with `Dispose()` no longer throws when `Cronex.Net.Hosting` is registered.** `CronexScheduler` (a singleton) implemented only `IAsyncDisposable`, and a container or scope disposed with `Dispose()` throws on such a service ("type only implements IAsyncDisposable"); it now implements `IDisposable` too.
+
 ## 0.6.0
 
 ### Changed — `TickAsync` dispatches handlers without waiting for them (breaking)

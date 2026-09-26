@@ -6,7 +6,7 @@ namespace Cronex;
 /// The core scheduler that manages trigger registrations and fires them on schedule.
 /// Uses TimeProvider for testability.
 /// </summary>
-public sealed class CronexScheduler : IAsyncDisposable
+public sealed class CronexScheduler : IAsyncDisposable, IDisposable
 {
     private readonly ConcurrentDictionary<string, TriggerRegistration> _triggers = new();
     private readonly ConcurrentDictionary<Task, byte> _inFlight = new();
@@ -613,6 +613,12 @@ public sealed class CronexScheduler : IAsyncDisposable
         }
         return hash;
     }
+
+    /// <summary>
+    /// Disposes synchronously, for a container or scope disposed with <c>Dispose()</c> (which throws on a service that is
+    /// only <see cref="IAsyncDisposable"/>). Blocks on <see cref="DisposeAsync"/>.
+    /// </summary>
+    public void Dispose() => DisposeAsync().AsTask().GetAwaiter().GetResult();
 
     /// <inheritdoc />
     public async ValueTask DisposeAsync()

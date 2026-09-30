@@ -98,8 +98,8 @@ var next = expr.GetNextOccurrence(DateTimeOffset.UtcNow);
 var upcoming = expr.Enumerate(DateTimeOffset.UtcNow, count: 20);
 
 // TryParse (no throw)
-if (CronexExpression.TryParse(input, out var expr, out var error))
-    Console.WriteLine(expr.GetNextOccurrence(DateTimeOffset.UtcNow));
+if (CronexExpression.TryParse(input, out var parsed, out var error))
+    Console.WriteLine(parsed.GetNextOccurrence(DateTimeOffset.UtcNow));
 
 // Validate (structured errors and warnings for programmatic consumers)
 var result = ExpressionValidator.Validate("0 25 * * *");
@@ -180,13 +180,13 @@ unexpected errors; the loop keeps running after firing it.
 scheduler.SetEnabled("sync", false);  // pause
 scheduler.SetEnabled("sync", true);   // resume
 scheduler.Unregister("old-job");      // remove
-scheduler.IsRunning;                  // true while Start() has an active tick loop
+var running = scheduler.IsRunning;    // true while Start() has an active tick loop
 
 // Reload a changed schedule without resetting FireCount/LastFired — Unregister + Register
 // would create a brand-new registration and reset FireCount to 0, breaking a {max:N} trigger's
 // count across the reload.
 scheduler.Update("sync", "@every 30m");                              // schedule only, keep handler
-scheduler.Update("sync", "@every 30m", async (ctx, ct) => { ... });   // schedule + handler
+scheduler.Update("sync", "@every 30m", async (ctx, ct) => await SyncAsync(ctx.Metadata["endpoint"], ct));   // schedule + handler
 
 // Handlers dispatched by TickAsync run without blocking the tick — await this when you need to
 // know they've all settled (e.g. right before asserting FireCount/TriggerCompleted in a test, or
@@ -259,7 +259,7 @@ reflection-based `System.Text.Json`:
 
 ```csharp
 var json = JsonSerializer.Serialize(definition, TriggerDefinitionJsonContext.Default.TriggerDefinition);
-var definition = JsonSerializer.Deserialize(json, TriggerDefinitionJsonContext.Default.TriggerDefinition);
+var restored = JsonSerializer.Deserialize(json, TriggerDefinitionJsonContext.Default.TriggerDefinition);
 ```
 
 ## Multi-Instance Deployment

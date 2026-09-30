@@ -4,8 +4,7 @@ using Xunit;
 namespace Cronex.Tests;
 
 /// <summary>
-/// Quartz "?" ("don't care") wildcard synonym for day-of-month/day-of-week
-/// (ISSUE-cronex-20260807-084717-quartz-question-mark-support).
+/// Quartz "?" ("don't care") wildcard synonym for day-of-month/day-of-week.
 /// </summary>
 public class QuestionMarkTests
 {

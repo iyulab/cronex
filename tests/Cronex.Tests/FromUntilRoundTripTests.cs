@@ -4,8 +4,8 @@ using Xunit;
 namespace Cronex.Tests;
 
 /// <summary>
-/// T-7: from/until datetime ToString round-trip tests (M-3 fix verification).
-/// Also covers M-6: From adjustment for @every/@once.
+/// From/until datetime ToString round-trip tests.
+/// Also covers the From adjustment for @every/@once.
 /// </summary>
 public class FromUntilRoundTripTests
 {
@@ -58,7 +58,7 @@ public class FromUntilRoundTripTests
     [Fact]
     public void Next_IntervalWithFrom_DoesNotFireEarly()
     {
-        // M-6: @every with From should start exactly at From
+        // @every with From should start exactly at From
         var expr = CronexExpression.Parse("@every 1h {from:2026-06-01T09:00:00Z}");
         var from = new DateTimeOffset(2026, 6, 1, 8, 0, 0, TimeSpan.Zero); // Before From
         var next = expr.GetNextOccurrence(from);
@@ -71,7 +71,7 @@ public class FromUntilRoundTripTests
     [Fact]
     public void Next_OnceBeforeFrom_ReturnsNull()
     {
-        // M-6: @once before From should return null (explicit UTC to avoid locale issues)
+        // @once before From should return null (explicit UTC to avoid locale issues)
         var expr = CronexExpression.Parse("@once 2025-05-31T23:59:59Z {from:2025-06-01T00:00:00Z}");
         var from = new DateTimeOffset(2025, 5, 1, 0, 0, 0, TimeSpan.Zero);
         var next = expr.GetNextOccurrence(from);
@@ -82,7 +82,7 @@ public class FromUntilRoundTripTests
     [Fact]
     public void Next_CronWithFrom_AddsOneSecondOffset()
     {
-        // M-6: Cron with From uses AddSeconds(-1) trick for correct Next() behavior
+        // Cron with From uses AddSeconds(-1) trick for correct Next() behavior
         var expr = CronexExpression.Parse("0 9 * * * {from:2026-01-01}");
         var from = new DateTimeOffset(2025, 12, 1, 0, 0, 0, TimeSpan.Zero);
         var next = expr.GetNextOccurrence(from);

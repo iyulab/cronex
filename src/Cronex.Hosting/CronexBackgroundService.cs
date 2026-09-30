@@ -63,7 +63,7 @@ internal sealed class CronexBackgroundService : BackgroundService
                 continue;
             }
 
-            // M-4: Use TriggerDefinition overload to preserve metadata
+            // Use TriggerDefinition overload to preserve metadata
             var definition = new TriggerDefinition
             {
                 Id = desc.Id,

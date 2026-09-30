@@ -232,7 +232,7 @@ public sealed partial class CronexExpression
         if (Options.Until.HasValue && from >= Options.Until.Value)
             return null;
 
-        // M-6: Kind-specific From adjustment
+        // Kind-specific From adjustment
         switch (Kind)
         {
             case ScheduleKind.Cron:
@@ -307,7 +307,7 @@ public sealed partial class CronexExpression
     {
         if (!IntervalSchedule.HasValue) return null;
 
-        // M-1: Support range intervals with random sampling
+        // Support range intervals with random sampling
         var ivl = IntervalSchedule.Value;
         TimeSpan interval;
         if (ivl.IsRange && ivl.MaxInterval.HasValue)

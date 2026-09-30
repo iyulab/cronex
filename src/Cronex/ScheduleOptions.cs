@@ -221,7 +221,7 @@ public sealed class ScheduleOptions
         if (From.HasValue)
         {
             var f = From.Value;
-            // M-3: date-only (midnight at any offset) → short format; otherwise full ISO 8601
+            // Date-only (midnight at any offset) → short format; otherwise full ISO 8601
             parts.Add(f.TimeOfDay == TimeSpan.Zero
                 ? $"from:{f:yyyy-MM-dd}"
                 : $"from:{f:O}");
@@ -237,7 +237,7 @@ public sealed class ScheduleOptions
         if (Until.HasValue)
         {
             var u = Until.Value;
-            // M-3: date-only until (23:59:59.999) → short format; otherwise full ISO 8601
+            // Date-only until (23:59:59.999) → short format; otherwise full ISO 8601
             parts.Add(u.Hour == 23 && u.Minute == 59 && u.Second == 59
                 ? $"until:{u:yyyy-MM-dd}"
                 : $"until:{u:O}");

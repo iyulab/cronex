@@ -7,7 +7,7 @@ using Xunit;
 namespace Cronex.Tests;
 
 /// <summary>
-/// T-1: Cronex.Hosting tests — DI registration and metadata flow.
+/// Cronex.Hosting tests — DI registration and metadata flow.
 /// </summary>
 public class HostingTests
 {

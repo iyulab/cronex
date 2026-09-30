@@ -55,7 +55,7 @@ jobs:
 
     - name: Test
       if: steps.check_tag.outputs.exists == 'false'
-      # xUnit v3 / Microsoft.Testing.Platform pilot (BD-20260828-07 follow-up, 2026-08-29):
+      # xUnit v3 / Microsoft.Testing.Platform:
       # --hangdump/--hangdump-timeout is MTP's equivalent of VSTest's --blame-hang.
       run: dotnet test --solution Cronex.slnx --no-build --configuration Release --verbosity normal --hangdump --hangdump-timeout 5m
 

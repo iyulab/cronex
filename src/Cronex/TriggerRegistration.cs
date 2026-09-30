@@ -111,7 +111,7 @@ public sealed class TriggerRegistration
         }
     }
 
-    // C-3: Backing field for Interlocked.Increment
+    // Backing field for Interlocked.Increment
     internal int _fireCount;
 
     /// <summary>Total number of times this trigger has fired.</summary>

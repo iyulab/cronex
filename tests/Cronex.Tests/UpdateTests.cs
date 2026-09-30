@@ -4,8 +4,7 @@ using Xunit;
 namespace Cronex.Tests;
 
 /// <summary>
-/// Runtime expression update preserving FireCount/LastFired
-/// (ISSUE-cronex-20260807-084719-runtime-expression-update).
+/// Runtime expression update preserving FireCount/LastFired.
 /// </summary>
 public class UpdateTests
 {

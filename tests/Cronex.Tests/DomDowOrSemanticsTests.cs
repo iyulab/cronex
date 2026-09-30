@@ -4,7 +4,7 @@ using Xunit;
 namespace Cronex.Tests;
 
 /// <summary>
-/// T-4: DOM/DOW OR semantics tests (C-1 fix verification).
+/// DOM/DOW OR semantics tests.
 /// Standard Vixie Cron: when both DOM and DOW are non-wildcard, match on either (OR).
 /// </summary>
 public class DomDowOrSemanticsTests

@@ -13,7 +13,7 @@ public sealed class CronexScheduler : IAsyncDisposable, IDisposable
     private readonly TimeProvider _timeProvider;
     private CancellationTokenSource? _cts;
     private Task? _tickLoop;
-    private int _started; // 0 = stopped, 1 = running (C-2: atomic guard)
+    private int _started; // 0 = stopped, 1 = running (atomic guard)
     private int _disposed; // Issue 1: int for Interlocked thread safety
 
     /// <summary>
@@ -211,7 +211,7 @@ public sealed class CronexScheduler : IAsyncDisposable, IDisposable
         if (Volatile.Read(ref _disposed) == 1)
             throw new ObjectDisposedException(nameof(CronexScheduler));
 
-        // C-2: Atomic guard — only one tick loop can be created
+        // Atomic guard — only one tick loop can be created
         if (Interlocked.CompareExchange(ref _started, 1, 0) != 0)
             return;
 
@@ -296,7 +296,7 @@ public sealed class CronexScheduler : IAsyncDisposable, IDisposable
                 if (now >= nextFireTime.Value)
                 {
                     SafeInvoke(() => TriggerSkipped?.Invoke(reg.Id, "disabled"), nameof(TriggerSkipped));
-                    // E-1: Fast-forward past every occurrence already missed while disabled, not
+                    // Fast-forward past every occurrence already missed while disabled, not
                     // just the one just observed — otherwise a trigger disabled for a long stretch
                     // re-reports "disabled" once per missed occurrence as later ticks each walk one
                     // step at a time, instead of catching up to `now` in a single tick.
@@ -316,7 +316,7 @@ public sealed class CronexScheduler : IAsyncDisposable, IDisposable
                 effectiveFireTime = effectiveFireTime.Add(staggerOffset);
             }
 
-            // M-2 / J-1: Apply jitter — drawn once when NextFireTime was set (TriggerRegistration),
+            // Apply jitter — drawn once when NextFireTime was set (TriggerRegistration),
             // not re-rolled here on every tick that observes the same still-pending occurrence.
             if (reg.JitterOffset.HasValue)
                 effectiveFireTime = effectiveFireTime.Add(reg.JitterOffset.Value);
@@ -327,14 +327,14 @@ public sealed class CronexScheduler : IAsyncDisposable, IDisposable
             // Check max
             if (reg.Expression.Options.Max.HasValue && reg.FireCount >= reg.Expression.Options.Max.Value)
             {
-                // D-1: claim before reporting so a concurrent TickAsync call can't also observe
+                // Claim before reporting so a concurrent TickAsync call can't also observe
                 // and report the same terminal transition.
                 if (reg.TryClaim(nextFireTime.Value))
                     SafeInvoke(() => TriggerSkipped?.Invoke(reg.Id, "max reached"), nameof(TriggerSkipped));
                 continue;
             }
 
-            // D-1: Atomically claim this occurrence. Two concurrent TickAsync calls (e.g. a manual
+            // Atomically claim this occurrence. Two concurrent TickAsync calls (e.g. a manual
             // call racing the automatic loop) can both observe the same due NextFireTime; only the
             // one that wins the compare-and-swap proceeds, so the trigger fires at most once.
             if (!reg.TryClaim(nextFireTime.Value))
@@ -342,7 +342,7 @@ public sealed class CronexScheduler : IAsyncDisposable, IDisposable
 
             var scheduledTime = nextFireTime.Value;
 
-            // MF-1: Misfire/catchup policy — decide what to do when we're behind schedule (a later
+            // Misfire/catchup policy — decide what to do when we're behind schedule (a later
             // occurrence is also already due). Default (All, or unset) fires every missed occurrence
             // one per tick, unchanged from before this option existed.
             var catchup = reg.Expression.Options.Catchup ?? CatchupPolicy.All;
@@ -441,7 +441,7 @@ public sealed class CronexScheduler : IAsyncDisposable, IDisposable
             handlerException = ex;
         }
 
-        // C-1: TriggerCompleted/TriggerFailed now reflect only the handler's own outcome — a
+        // TriggerCompleted/TriggerFailed now reflect only the handler's own outcome — a
         // subscriber throwing from either no longer gets misattributed as a handler failure.
         if (handlerException == null)
         {
@@ -449,7 +449,7 @@ public sealed class CronexScheduler : IAsyncDisposable, IDisposable
         }
         else if (TriggerFailed != null)
         {
-            // C-4: Fallback to Trace when no subscribers
+            // Fallback to Trace when no subscribers
             SafeInvoke(() => TriggerFailed.Invoke(context, handlerException), nameof(TriggerFailed));
         }
         else
@@ -526,7 +526,7 @@ public sealed class CronexScheduler : IAsyncDisposable, IDisposable
     private static readonly TimeSpan MaxPollInterval = TimeSpan.FromSeconds(1);
 
     /// <summary>
-    /// P-1: Computes how long the tick loop should sleep before its next poll, based on the nearest
+    /// Computes how long the tick loop should sleep before its next poll, based on the nearest
     /// upcoming effective fire time (nominal occurrence + stagger + jitter) across all registered
     /// triggers, clamped to [<see cref="MinPollInterval"/>, <see cref="MaxPollInterval"/>]. Replaces
     /// a fixed 1-second delay, which capped sub-second `window`/`jitter` precision at 1 second and

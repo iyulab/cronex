@@ -160,7 +160,6 @@ public class TriggerDefinitionTests
     }
 
     // AOT/trimming: source-generated JsonSerializerContext
-    // (ISSUE-cronex-20260807-084721-aot-and-json-source-gen)
 
     [Fact]
     public void SourceGenContext_SerializeThenDeserialize_RoundTrips()

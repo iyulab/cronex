@@ -4,7 +4,7 @@ using Xunit;
 namespace Cronex.Tests;
 
 /// <summary>
-/// T-3: Concurrency tests for CronexScheduler (C-2 through C-5 fix verification).
+/// Concurrency tests for CronexScheduler.
 /// </summary>
 public class ConcurrencyTests
 {
@@ -146,7 +146,7 @@ public class ConcurrencyTests
         var tp = new FakeTimeProvider(new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero));
         await using var scheduler = new CronexScheduler(tp);
 
-        // No TriggerFailed subscriber — C-4: should not swallow silently,
+        // No TriggerFailed subscriber — should not swallow silently,
         // but should NOT crash the scheduler either
         scheduler.Register("test", "* * * * *", (ctx, ct) =>
             throw new InvalidOperationException("boom"));
@@ -166,7 +166,7 @@ public class ConcurrencyTests
     {
         // 0.6.0: TickAsync dispatches the handler without awaiting it (scheduler-engine-reliability
         // item (a)), so by the time the handler observes cancellation, TickAsync's caller has
-        // already moved on — there is no one left to rethrow to. The old C-4 contract ("cancellation
+        // already moved on — there is no one left to rethrow to. The old contract ("cancellation
         // propagates out of TickAsync") is no longer possible under a non-blocking dispatch model;
         // what still holds is that the occurrence isn't lost — NextFireTime advances once the
         // dispatch settles, observable via WaitForIdleAsync.

@@ -113,7 +113,7 @@ public class ExpressionValidatorTests
         result.Errors[0].Position.ShouldBeNull();
     }
 
-    // E018: @once absolute time already in the past (ISSUE-cronex-20260807-090000-once-past-time-silent)
+    // E018: @once absolute time already in the past
 
     [Fact]
     public void Validate_OncePastAbsoluteTime_ErrorE018()
@@ -159,7 +159,6 @@ public class ExpressionValidatorTests
     }
 
     // E019: calendar-impossible day-of-month/month combination
-    // (ISSUE-cronex-20260807-084718-impossible-expression-validation)
 
     [Fact]
     public void Validate_Feb30_ErrorE019()

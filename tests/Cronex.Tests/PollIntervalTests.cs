@@ -4,8 +4,8 @@ using Xunit;
 namespace Cronex.Tests;
 
 /// <summary>
-/// P-1: Tests for the event-driven poll interval that replaced a fixed 1-second
-/// <c>Task.Delay</c> (ISSUE-cronex-20260807-084715-fixed-poll-drift).
+/// Tests for the event-driven poll interval that replaced a fixed 1-second
+/// <c>Task.Delay</c>.
 /// <see cref="CronexScheduler.ComputeNextPollDelay"/> is `internal` and exercised directly — the
 /// automatic loop it drives (<c>Start()</c>) uses real timers even under a fake
 /// <see cref="TimeProvider"/> (the base <c>TimeProvider.CreateTimer</c> isn't virtualized by this

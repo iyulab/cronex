@@ -4,7 +4,7 @@ using Xunit;
 namespace Cronex.Tests;
 
 /// <summary>
-/// T-6: Jitter runtime application tests (M-2 fix verification).
+/// Jitter runtime application tests.
 /// </summary>
 public class JitterTests
 {
@@ -96,8 +96,8 @@ public class JitterTests
     }
 
     /// <summary>
-    /// J-1: jitter must be drawn once per occurrence, not re-rolled on every tick that observes the
-    /// same still-pending occurrence (ISSUE-cronex-20260807-084711-jitter-recomputed-every-tick).
+    /// Jitter must be drawn once per occurrence, not re-rolled on every tick that observes the
+    /// same still-pending occurrence.
     /// </summary>
     [Fact]
     public async Task Jitter_NotRedrawn_AcrossMultipleTicksOfSamePendingOccurrence()
@@ -122,7 +122,7 @@ public class JitterTests
     }
 
     /// <summary>
-    /// J-1: with a single draw per occurrence, actual delay should follow U[0, jitter) — median
+    /// With a single draw per occurrence, actual delay should follow U[0, jitter) — median
     /// close to half the window. The old per-tick-redraw bug skewed this heavily toward small
     /// delays (median ~5-6s instead of 15s for a 30s window, per the issue's own analysis), because
     /// a fresh draw was retried every tick and only needed to land below elapsed time once.

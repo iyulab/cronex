@@ -7,8 +7,8 @@ namespace Cronex.Tests;
 /// Golden-value tests locking the stagger offset formula (FNV-1a32(triggerId) % staggerMs) to fixed
 /// reference values. `string.GetHashCode()` is randomized per process even via the
 /// <c>StringComparison</c> overload, so the old implementation could not pass a test like this —
-/// that was the bug (ISSUE-cronex-20260807-084712-stagger-hash-not-deterministic).
-/// Reference values computed independently (Python FNV-1a32, UTF-8 bytes) — see cycle-2 log.
+/// that was the bug.
+/// Reference values computed independently (Python FNV-1a32, UTF-8 bytes).
 /// </summary>
 public class StaggerHashTests
 {

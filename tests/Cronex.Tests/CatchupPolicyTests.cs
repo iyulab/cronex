@@ -4,7 +4,7 @@ using Xunit;
 namespace Cronex.Tests;
 
 /// <summary>
-/// MF-1: Misfire/catchup policy tests (ISSUE-cronex-20260807-084716-misfire-catchup-policy).
+/// Misfire/catchup policy tests.
 /// A per-minute trigger left unticked for 5 minutes has 5 missed occurrences by the time the next
 /// tick happens; these tests pin down what each `catchup` policy does with that backlog.
 /// </summary>

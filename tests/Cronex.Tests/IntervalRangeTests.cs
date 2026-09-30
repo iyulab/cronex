@@ -4,7 +4,7 @@ using Xunit;
 namespace Cronex.Tests;
 
 /// <summary>
-/// T-5: @every range interval actual Next() range verification (M-1 fix).
+/// @every range interval actual Next() range verification.
 /// </summary>
 public class IntervalRangeTests
 {

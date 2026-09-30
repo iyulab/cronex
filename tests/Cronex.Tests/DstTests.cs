@@ -4,7 +4,7 @@ using Xunit;
 namespace Cronex.Tests;
 
 /// <summary>
-/// T-2: DST spring-forward and fall-back tests (M-5 fix verification).
+/// DST spring-forward and fall-back tests.
 /// Uses US Eastern Time for testing.
 /// </summary>
 public class DstTests

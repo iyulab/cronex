@@ -6,6 +6,11 @@ Versions are `0.x` and breaking changes may occur in a minor bump. Dependency fl
 part of the public surface: raising one can break a consumer's restore, so a raise is called out
 here even when no code changed.
 
+## 0.6.2
+
+### Changed
+- **Documentation comments describe behaviour only.** Comments no longer refer to internal tracking or planning records.
+
 ## 0.6.1
 
 ### Fixed

@@ -6,7 +6,7 @@ Versions are `0.x` and breaking changes may occur in a minor bump. Dependency fl
 part of the public surface: raising one can break a consumer's restore, so a raise is called out
 here even when no code changed.
 
-## 0.7.0 — Unreleased
+## 0.7.0 — 2026-10-05
 
 ### Changed
 - **`CronexScheduler.StopAsync` takes a `CancellationToken`** (`StopAsync(CancellationToken cancellationToken = default)`).

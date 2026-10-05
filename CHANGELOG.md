@@ -14,6 +14,8 @@ here even when no code changed.
   first, `StopAsync` throws `OperationCanceledException` and a handler that ignores its own token keeps running.
   Without a token the behaviour is unchanged. **Breaking** for binaries compiled against 0.6.x (the method signature
   changed); source that calls `StopAsync()` compiles unchanged.
+- **The packages now carry the LICENSE text**, so an application that redistributes them can ship the MIT notice
+  from the package itself.
 
 ## 0.6.2
 

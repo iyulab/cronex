@@ -227,9 +227,17 @@ public sealed class CronexScheduler : IAsyncDisposable, IDisposable
     }
 
     /// <summary>
-    /// Stops the scheduler.
+    /// Stops the scheduler: the tick loop ends, dispatched handlers are signalled through their
+    /// cancellation token, and the call waits for them to finish.
     /// </summary>
-    public async Task StopAsync()
+    /// <param name="cancellationToken">
+    /// Ends that wait early, as a host's shutdown timeout does. The handlers have already been
+    /// signalled; one that does not observe its token keeps running after this call returns.
+    /// </param>
+    /// <exception cref="OperationCanceledException">
+    /// <paramref name="cancellationToken"/> was cancelled before the dispatched handlers finished.
+    /// </exception>
+    public async Task StopAsync(CancellationToken cancellationToken = default)
     {
         // Issue 4: Atomic guard — only one caller proceeds to tear down
         if (Interlocked.CompareExchange(ref _started, 0, 1) != 1)
@@ -242,6 +250,7 @@ public sealed class CronexScheduler : IAsyncDisposable, IDisposable
 
         if (cts == null) return;
 
+        var abandoned = false;
         try
         {
             await cts.CancelAsync();
@@ -251,15 +260,22 @@ public sealed class CronexScheduler : IAsyncDisposable, IDisposable
             // Let handlers already dispatched by the last tick(s) finish before returning, instead
             // of abandoning them mid-flight — they observe the same cancellation token, so a
             // cooperative handler still gets the chance to wind down.
-            await WaitForIdleAsync();
+            await WaitForIdleAsync(cancellationToken);
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            // Expected on shutdown: the tick loop ends on the scheduler's own token
         }
         catch (OperationCanceledException)
         {
-            // Expected on shutdown
+            // The caller stopped waiting; a handler still running observes the scheduler's token.
+            abandoned = true;
+            throw;
         }
         finally
         {
-            cts.Dispose();
+            if (!abandoned)
+                cts.Dispose();
         }
     }
 

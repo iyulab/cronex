@@ -15,10 +15,7 @@ namespace Cronex.Tests;
 /// </remarks>
 public class PublicApiConventionTests
 {
-    private static readonly string[] KnownUncancellable =
-    [
-        "Cronex.CronexScheduler.StopAsync()",
-    ];
+    private static readonly string[] KnownUncancellable = [];
 
     private static readonly string[] KnownResultReturns = [];
 

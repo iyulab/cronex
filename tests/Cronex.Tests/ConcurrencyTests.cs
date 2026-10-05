@@ -18,7 +18,7 @@ public class ConcurrencyTests
         scheduler.Start();
         scheduler.Start();
 
-        await scheduler.StopAsync();
+        await scheduler.StopAsync(TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -45,7 +45,7 @@ public class ConcurrencyTests
         await scheduler.TickAsync(TestContext.Current.CancellationToken);
 
         fireCount.ShouldBeLessThanOrEqualTo(1);
-        await scheduler.StopAsync();
+        await scheduler.StopAsync(TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -68,7 +68,7 @@ public class ConcurrencyTests
         await scheduler.TickAsync(TestContext.Current.CancellationToken);
 
         fired.ShouldBeTrue();
-        await scheduler.StopAsync();
+        await scheduler.StopAsync(TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -109,13 +109,13 @@ public class ConcurrencyTests
         scheduler.Start();
         tp.Advance(TimeSpan.FromMinutes(1));
         await scheduler.TickAsync(TestContext.Current.CancellationToken);
-        await scheduler.StopAsync();
+        await scheduler.StopAsync(TestContext.Current.CancellationToken);
 
         // Restart
         scheduler.Start();
         tp.Advance(TimeSpan.FromMinutes(1));
         await scheduler.TickAsync(TestContext.Current.CancellationToken);
-        await scheduler.StopAsync();
+        await scheduler.StopAsync(TestContext.Current.CancellationToken);
 
         fireCount.ShouldBe(2);
     }

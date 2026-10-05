@@ -357,7 +357,7 @@ public class CronexSchedulerTests
         }
         finally
         {
-            await scheduler.StopAsync();
+            await scheduler.StopAsync(TestContext.Current.CancellationToken);
         }
     }
 
@@ -380,7 +380,7 @@ public class CronexSchedulerTests
         }
         finally
         {
-            await scheduler.StopAsync();
+            await scheduler.StopAsync(TestContext.Current.CancellationToken);
         }
     }
 
@@ -401,7 +401,7 @@ public class CronexSchedulerTests
         }
         finally
         {
-            await scheduler.StopAsync();
+            await scheduler.StopAsync(TestContext.Current.CancellationToken);
         }
     }
 }

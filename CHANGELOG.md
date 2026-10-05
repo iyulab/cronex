@@ -6,6 +6,15 @@ Versions are `0.x` and breaking changes may occur in a minor bump. Dependency fl
 part of the public surface: raising one can break a consumer's restore, so a raise is called out
 here even when no code changed.
 
+## 0.7.0 — Unreleased
+
+### Changed
+- **`CronexScheduler.StopAsync` takes a `CancellationToken`** (`StopAsync(CancellationToken cancellationToken = default)`).
+  It bounds the wait for handlers already dispatched, as a host's shutdown timeout does: when the token is cancelled
+  first, `StopAsync` throws `OperationCanceledException` and a handler that ignores its own token keeps running.
+  Without a token the behaviour is unchanged. **Breaking** for binaries compiled against 0.6.x (the method signature
+  changed); source that calls `StopAsync()` compiles unchanged.
+
 ## 0.6.2
 
 ### Changed

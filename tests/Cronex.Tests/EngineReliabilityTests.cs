@@ -178,8 +178,36 @@ public class EngineReliabilityTests
         scheduler.Start();
         scheduler.IsRunning.ShouldBeTrue();
 
-        await scheduler.StopAsync();
+        await scheduler.StopAsync(TestContext.Current.CancellationToken);
         scheduler.IsRunning.ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task StopAsync_StopsWaitingForAHandlerThatIgnoresItsToken_WhenTheCallerCancels()
+    {
+        // A host stops a service under a shutdown timeout. StopAsync waits for dispatched handlers,
+        // and one that ignores its token would hold shutdown for as long as it runs: the caller's
+        // token ends the wait and the cancellation reaches the caller.
+        var tp = new FakeTimeProvider(new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero));
+        await using var scheduler = new CronexScheduler(tp);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        scheduler.Register("stubborn", "* * * * *", async (ctx, ct) =>
+        {
+            started.TrySetResult();
+            await release.Task;   // ignores ct on purpose
+        });
+        scheduler.Start();
+        tp.Advance(TimeSpan.FromMinutes(1));
+        await scheduler.TickAsync(TestContext.Current.CancellationToken);
+        await started.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+
+        using var shutdown = new CancellationTokenSource(TimeSpan.FromMilliseconds(100));
+        var stop = scheduler.StopAsync(shutdown.Token);
+
+        await Should.ThrowAsync<OperationCanceledException>(() => stop.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken));
+        scheduler.IsRunning.ShouldBeFalse();
+        release.SetResult();
     }
 
     [Fact]

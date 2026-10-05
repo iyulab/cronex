@@ -137,7 +137,8 @@ scheduler.Register("cleanup", "0 3 * * *", async (ctx, ct) =>
 
 scheduler.Start();
 
-// Don't forget to stop and dispose
+// Don't forget to stop and dispose. StopAsync waits for running handlers;
+// pass a token (a host's shutdown token, say) to bound that wait.
 await scheduler.StopAsync();
 await scheduler.DisposeAsync();
 ```

@@ -6,6 +6,13 @@ Versions are `0.x` and breaking changes may occur in a minor bump. Dependency fl
 part of the public surface: raising one can break a consumer's restore, so a raise is called out
 here even when no code changed.
 
+## Unreleased
+
+### Changed
+- **`Cronex.Net.Hosting` depends on exactly the same `Cronex.Net` version** (`[x.y.z]`), not a floor. A consumer that pins a
+  newer `Cronex.Net` while an older `Cronex.Net.Hosting` is resolved now gets restore warning NU1608 naming the pair
+  (an error where warnings are errors) — before, the mismatched pair restored silently and could fail at run time.
+
 ## 0.7.0 — 2026-10-05
 
 ### Changed

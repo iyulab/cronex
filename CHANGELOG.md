@@ -12,6 +12,7 @@ here even when no code changed.
 - **`Cronex.Net.Hosting` depends on exactly the same `Cronex.Net` version** (`[x.y.z]`), not a floor. A consumer that pins a
   newer `Cronex.Net` while an older `Cronex.Net.Hosting` is resolved now gets restore warning NU1608 naming the pair
   (an error where warnings are errors) — before, the mismatched pair restored silently and could fail at run time.
+- **The nuget.org «Release Notes» of every package link to the GitHub release of its version**, whose notes are this CHANGELOG's section for that version.
 
 ## 0.7.0 — 2026-10-05
 

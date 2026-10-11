@@ -54,6 +54,22 @@ dotnet add package Cronex.Net.Hosting  # Optional: Generic Host integration
 
 The core package has **zero external dependencies**.
 
+## Features
+
+| Feature | Entry point | How to turn it on |
+|---|---|---|
+| Parse an expression | `CronexExpression.Parse` / `TryParse` (`Cronex.Net`) | Call directly — no registration |
+| Next occurrences | `CronexExpression.GetNextOccurrence(from)`, `Enumerate(from, count)`, `Matches(dt)` | Call directly; pure functions of the reference time |
+| Structured validation (error/warning codes, field, value) | `ExpressionValidator.Validate(expression)` → `ValidationResult` | Call directly |
+| Human-readable description | `CronexExpression.Describe()` | Call directly |
+| In-process scheduler | `CronexScheduler` — `Register`, `Start`, `StopAsync`, `DisposeAsync` | `new CronexScheduler()`; nothing fires until `Start()` |
+| Runtime control | `CronexScheduler.Update`, `SetEnabled`, `Unregister`, `GetTrigger` / `GetTriggers` → `TriggerRegistration` (`FireCount`, `LastFired`, `NextFireTime`) | Call on a scheduler; `Update` keeps `FireCount`/`LastFired` |
+| Lifecycle events | `TriggerFiring`, `TriggerCompleted`, `TriggerFailed`, `TriggerSkipped`, `SchedulerFaulted` | Subscribe on the scheduler |
+| Execution options (`jitter`, `stagger`, `window`, `from`, `until`, `max`, `tag`, `catchup`) | `{...}` block in the expression; parsed into `CronexExpression.Options` (`ScheduleOptions`) | Write them in the expression string |
+| Deterministic tests | `new CronexScheduler(timeProvider)`, `TickAsync()`, `WaitForIdleAsync()` | Pass a `TimeProvider` (e.g. a fake clock) and drive ticks yourself instead of `Start()` |
+| Serializable trigger specs (AOT-safe JSON) | `TriggerDefinition`, `TriggerDefinitionJsonContext` | `scheduler.Register(definition, handler)` |
+| Generic Host integration | `services.AddCronex(c => c.AddTrigger(...))`, `ICronexHandler` (`Cronex.Net.Hosting`) | Opt-in package; `AddCronex` registers `CronexScheduler` as a singleton and a hosted service that registers the triggers and calls `Start()` on host start |
+
 ## Expression
 
 ### Quick Reference
@@ -203,7 +219,7 @@ This is what your handler receives. Everything needed to do the work:
 public sealed class TriggerContext
 {
     string              TriggerId      // which trigger fired
-    CronexExpression   Expression     // the parsed expression (inspect: .GetNextOccurrence(), .Options, .TimeZone)
+    CronexExpression   Expression     // the parsed expression (inspect: .GetNextOccurrence(), .Options, .TimeZoneInfo)
     DateTimeOffset      ScheduledTime  // intended fire time (before jitter/stagger)
     DateTimeOffset      ActualTime     // actual dispatch time (after jitter/stagger)
     int                 FireCount      // 1-based total executions

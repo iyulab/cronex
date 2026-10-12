@@ -270,7 +270,9 @@ This separation matters because:
 - **External tools** can generate definitions programmatically
 - **Validation** works on the definition before any handler is involved
 
-**Native AOT / trimming.** Cronex (`IsAotCompatible`) ships `TriggerDefinitionJsonContext`, a
+### Native AOT / trimming
+
+Cronex (`IsAotCompatible`) ships `TriggerDefinitionJsonContext`, a
 source-generated `JsonSerializerContext`, so serializing `TriggerDefinition` doesn't need
 reflection-based `System.Text.Json`:
 

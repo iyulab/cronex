@@ -45,11 +45,8 @@ public class ReadmeSnippetCompileTests
         ["logger"] = "ILogger logger = null!;",
         ["input"] = "string input = \"0 9 * * *\";",
         ["definition"] = "var definition = new TriggerDefinition { Id = \"sync\", Expression = \"@every 15m\" };",
-        // The reader's own leader lock, as a value: the kit adds a type stand-in only when the example itself names the
-        // type, and this block names only the value.
-        // TODO(upstream: SnippetCompiler type stand-ins referenced from a value stand-in are not added) - return to a
-        // LeaderLock type stand-in once the kit chains them.
-        ["leaderLock"] = "var leaderLock = new { TryAcquireAsync = (Func<Task<bool>>)(() => Task.FromResult(true)) };",
+        // The reader's own leader lock; its type is a type stand-in below.
+        ["leaderLock"] = "LeaderLock leaderLock = new();",
         ["builder"] = "IHostApplicationBuilder builder = null!;",
 
         // The reader's own helper methods.
@@ -62,6 +59,7 @@ public class ReadmeSnippetCompileTests
 
         // The reader's own types, declared after the program.
         ["IReportService"] = "public interface IReportService { Task GenerateAsync(DateTimeOffset at, CancellationToken ct); }",
+        ["LeaderLock"] = "sealed class LeaderLock { public Task<bool> TryAcquireAsync() => Task.FromResult(true); }",
     };
 
     private static readonly string[] AssembliesToLoad =

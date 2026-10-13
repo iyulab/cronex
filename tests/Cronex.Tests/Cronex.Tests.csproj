@@ -26,8 +26,8 @@
     <!-- Hang dumps for stuck tests: the Microsoft.Testing.Platform equivalent of VSTest's blame-hang -->
     <PackageReference Include="Microsoft.Testing.Extensions.HangDump" Version="2.3.3" />
     <PackageReference Include="Shouldly" Version="4.3.0" />
-    <PackageReference Include="Iyu.Conventions.Testing.Snippets" Version="0.10.1" />
-    <PackageReference Include="Iyu.Conventions.Testing" Version="0.7.0" />
+    <PackageReference Include="Iyu.Conventions.Testing.Snippets" Version="0.12.0" />
+    <PackageReference Include="Iyu.Conventions.Testing" Version="0.12.0" />
     <!-- Deliberately the floor declared by Cronex.Net.Hosting, so the test run proves that
          floor actually builds and passes instead of only asserting it in the nuspec. -->
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.0" />

@@ -6,7 +6,7 @@ Versions are `0.x` and breaking changes may occur in a minor bump. Dependency fl
 part of the public surface: raising one can break a consumer's restore, so a raise is called out
 here even when no code changed.
 
-## Unreleased
+## 0.7.1 — 2026-10-16
 
 ### Changed
 - **`Cronex.Net.Hosting` depends on exactly the same `Cronex.Net` version** (`[x.y.z]`), not a floor. A consumer that pins a

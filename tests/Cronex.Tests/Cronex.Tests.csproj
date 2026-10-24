@@ -18,19 +18,19 @@
     <!-- xUnit v3 pilot migration: xunit replaced with xunit.v3, no Microsoft.NET.Test.Sdk (not
          required under Microsoft.Testing.Platform, per xunit/samples.xunit v3/AssertExamples.csproj).
          xunit.runner.visualstudio kept for IDE Test Explorer discovery. -->
-    <PackageReference Include="xunit.v3" Version="4.0.0" />
-    <PackageReference Include="xunit.runner.visualstudio" Version="4.0.0">
+    <PackageReference Include="xunit.v3" Version="4.0.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="4.0.1">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
     <!-- Hang dumps for stuck tests: the Microsoft.Testing.Platform equivalent of VSTest's blame-hang -->
-    <PackageReference Include="Microsoft.Testing.Extensions.HangDump" Version="2.3.3" />
+    <PackageReference Include="Microsoft.Testing.Extensions.HangDump" Version="2.5.1" />
     <PackageReference Include="Shouldly" Version="4.3.0" />
     <PackageReference Include="Iyu.Conventions.Testing.Snippets" Version="0.13.0" />
     <PackageReference Include="Iyu.Conventions.Testing" Version="0.13.0" />
     <!-- Deliberately the floor declared by Cronex.Net.Hosting, so the test run proves that
          floor actually builds and passes instead of only asserting it in the nuspec. -->
-    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.13" />
   </ItemGroup>
 
 </Project>

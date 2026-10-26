@@ -10,6 +10,7 @@ here even when no code changed.
 
 ### Dependencies
 - `Microsoft.Extensions.Hosting.Abstractions` 10.0.0 -> 10.0.13 (`Cronex.Net.Hosting`).
+- Re-pinned third-party packages: 2 .NET servicing pins (Microsoft.Extensions) 10.0.13 -> 10.0.14 (the 10.0.14 security servicing release).
 
 ## 0.7.1 — 2026-10-16
 

@@ -30,7 +30,7 @@
     <PackageReference Include="Iyu.Conventions.Testing" Version="0.13.0" />
     <!-- Deliberately the floor declared by Cronex.Net.Hosting, so the test run proves that
          floor actually builds and passes instead of only asserting it in the nuspec. -->
-    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.13" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.14" />
   </ItemGroup>
 
 </Project>

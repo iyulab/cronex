@@ -24,7 +24,7 @@
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
     <!-- Hang dumps for stuck tests: the Microsoft.Testing.Platform equivalent of VSTest's blame-hang -->
-    <PackageReference Include="Microsoft.Testing.Extensions.HangDump" Version="2.5.1" />
+    <PackageReference Include="Microsoft.Testing.Extensions.HangDump" Version="2.5.2" />
     <PackageReference Include="Shouldly" Version="4.3.0" />
     <PackageReference Include="Iyu.Conventions.Testing.Snippets" Version="0.13.0" />
     <PackageReference Include="Iyu.Conventions.Testing" Version="0.13.0" />

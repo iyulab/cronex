@@ -8,6 +8,12 @@ here even when no code changed.
 
 ## Unreleased
 
+### Fixed
+- **A relative `@once +Nm` follows the scheduler's `TimeProvider`**: `Register`, `Update` and `Register(TriggerDefinition, ...)` (so `AddCronex` triggers too) resolved the offset against the wall clock unless a `referenceTime` was passed, so a scheduler driven by a fake clock never fired it. An explicit `referenceTime` still wins; a scheduler on `TimeProvider.System` behaves as before.
+
+### Documentation
+- README: the validation example shows the real message (`Hour: value 25 out of range [0, 23]`), and the quick reference notes the optional leading seconds field.
+
 ### Dependencies
 - `Microsoft.Extensions.Hosting.Abstractions` 10.0.0 -> 10.0.13 (`Cronex.Net.Hosting`).
 - Re-pinned third-party packages: 2 .NET servicing pins (Microsoft.Extensions) 10.0.13 -> 10.0.14 (the 10.0.14 security servicing release).

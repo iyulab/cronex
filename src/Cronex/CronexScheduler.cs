@@ -54,13 +54,13 @@ public sealed class CronexScheduler : IAsyncDisposable, IDisposable
     /// <param name="id">Unique identifier for this trigger.</param>
     /// <param name="expression">The Cronex expression string.</param>
     /// <param name="handler">The async handler to invoke when the trigger fires.</param>
-    /// <param name="referenceTime">Reference time for relative @once expressions.</param>
+    /// <param name="referenceTime">Reference time for relative @once expressions. Defaults to the scheduler's clock (its TimeProvider).</param>
     /// <returns>The trigger registration.</returns>
     public TriggerRegistration Register(string id, string expression,
         Func<TriggerContext, CancellationToken, Task> handler,
         DateTimeOffset? referenceTime = null)
     {
-        var expr = CronexExpression.Parse(expression, referenceTime);
+        var expr = CronexExpression.Parse(expression, referenceTime ?? _timeProvider.GetUtcNow());
         return Register(id, expr, handler);
     }
 
@@ -88,7 +88,7 @@ public sealed class CronexScheduler : IAsyncDisposable, IDisposable
     public TriggerRegistration Register(TriggerDefinition definition,
         Func<TriggerContext, CancellationToken, Task> handler)
     {
-        var expr = CronexExpression.Parse(definition.Expression);
+        var expr = CronexExpression.Parse(definition.Expression, _timeProvider.GetUtcNow());
         var reg = new TriggerRegistration(definition.Id, expr, handler, definition.Metadata);
         var now = _timeProvider.GetUtcNow();
         reg.NextFireTime = expr.GetNextOccurrence(now);
@@ -111,12 +111,12 @@ public sealed class CronexScheduler : IAsyncDisposable, IDisposable
     /// </summary>
     /// <param name="id">The trigger to update.</param>
     /// <param name="expression">The new Cronex expression string.</param>
-    /// <param name="referenceTime">Reference time for relative @once expressions.</param>
+    /// <param name="referenceTime">Reference time for relative @once expressions. Defaults to the scheduler's clock (its TimeProvider).</param>
     /// <returns>The updated trigger registration (same instance as before the call).</returns>
     /// <exception cref="InvalidOperationException">No trigger with <paramref name="id"/> is registered.</exception>
     public TriggerRegistration Update(string id, string expression, DateTimeOffset? referenceTime = null)
     {
-        var expr = CronexExpression.Parse(expression, referenceTime);
+        var expr = CronexExpression.Parse(expression, referenceTime ?? _timeProvider.GetUtcNow());
         return Update(id, expr);
     }
 
@@ -136,7 +136,7 @@ public sealed class CronexScheduler : IAsyncDisposable, IDisposable
     public TriggerRegistration Update(string id, string expression,
         Func<TriggerContext, CancellationToken, Task> handler, DateTimeOffset? referenceTime = null)
     {
-        var expr = CronexExpression.Parse(expression, referenceTime);
+        var expr = CronexExpression.Parse(expression, referenceTime ?? _timeProvider.GetUtcNow());
         return Update(id, expr, handler);
     }
 

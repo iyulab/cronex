@@ -78,6 +78,7 @@ The core package has **zero external dependencies**.
 |---------|---------|
 | `*/5 * * * *` | Every 5 minutes |
 | `0 9 * * MON-FRI` | Weekdays at 09:00 |
+| `0 0 9 * * MON` | Six fields: a leading seconds field is accepted too (Quartz/Spring style) - Mondays at 09:00:00 |
 | `TZ=UTC 0 0 * * *` | Midnight UTC |
 | `@every 30m` | Every 30 minutes |
 | `@every 1h-2h` | Random 1–2 hour interval |
@@ -123,7 +124,7 @@ var result = ExpressionValidator.Validate("0 25 * * *");
 // result.Errors[0]:
 //   Code:  "E003"
 //   Field: "hour"
-//   Message: "Value 25 out of range [0, 23]"
+//   Message: "Hour: value 25 out of range [0, 23]"
 //   Value: "25"
 
 // Warnings (non-blocking)

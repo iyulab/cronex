@@ -18,7 +18,7 @@
     <!-- xUnit v3 pilot migration: xunit replaced with xunit.v3, no Microsoft.NET.Test.Sdk (not
          required under Microsoft.Testing.Platform, per xunit/samples.xunit v3/AssertExamples.csproj).
          xunit.runner.visualstudio kept for IDE Test Explorer discovery. -->
-    <PackageReference Include="xunit.v3" Version="4.0.2" />
+    <PackageReference Include="xunit.v3" Version="4.0.3" />
     <PackageReference Include="xunit.runner.visualstudio" Version="4.0.1">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
